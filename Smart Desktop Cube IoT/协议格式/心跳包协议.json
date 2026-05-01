@@ -1,0 +1,14 @@
+{
+  "device_id": string,          // 设备ID（MAC地址）
+  "token": string,              // 临时凭证
+  "timestamp": int,             // 时间戳
+  "type": string,               // 固定：heartbeat
+  "status": {
+    "wifi_connected": bool,     // WiFi是否在线
+    "mqtt_connected": bool,     // MQTT是否在线
+    "screen_normal": bool,      // 屏幕是否正常
+    "sensor_normal": bool,      // 传感器是否正常
+    "focus_mode": bool,         // 是否专注模式
+    "power_voltage": double     // 供电电压
+  }
+}

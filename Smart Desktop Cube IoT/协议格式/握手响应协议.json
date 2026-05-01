@@ -1,0 +1,8 @@
+{
+  "code": int,                  // 200=成功，403=失败
+  "type": string,               //返回类型
+  "msg": string,                // 返回信息
+  "timestamp": int,             // 服务器时间戳
+  "token": string,              // 临时身份凭证（后续上传必须带）
+  "expire_time": int            // Token过期时间（秒）
+}

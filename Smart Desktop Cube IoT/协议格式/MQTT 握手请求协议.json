@@ -1,0 +1,14 @@
+{
+  "device_id": string,          // 设备ID（MAC地址）
+  "timestamp": int,             // 时间戳
+  "type": string,               // 消息类型：handshake
+  "chip_model": string,         // 芯片型号：ESP32-S3
+  "version": string             // 固件版本号
+}
+type：
+handshake         = 设备握手请求
+handshake_ack     = 握手响应
+data_report       = 传感器数据上报
+data_report_ack   = 数据上报响应
+heartbeat         = 设备心跳包
+heartbeat_ack     = 服务器心跳响应

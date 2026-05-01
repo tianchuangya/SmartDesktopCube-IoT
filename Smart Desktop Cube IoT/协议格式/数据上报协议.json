@@ -1,0 +1,27 @@
+{
+  "device_id": string,                //设备id（mac地址）
+  "token": string,                    // 握手获取的临时Token
+  "timestamp": int,                   //请求时间（现实时间）
+  "type": string,                     //请求类型
+  "data": {                           //上传传感器数据
+   "data": {
+    "temperature": double,            // 环境温度（单位：℃）
+    "humidity": double,               // 环境湿度（单位：%RH）
+    "illuminance": double,            // 环境光照强度（单位：lx）
+    "aqi": double,                    // 空气质量指数（数值越小越好）
+    "tvoc": double,                   // 有机挥发物浓度（甲醛/异味等效值）
+    "eco2": double,                   // 二氧化碳等效浓度（单位：ppm）
+    "mold_risk": double,              // 霉菌风险等级（0=无，1=低，2=中，3=高）
+    "gas": double,                    // 燃气/天然气浓度（0=正常，>0表示泄漏）
+    "version": string                 // 设备固件版本号（方便升级维护）
+  },
+  "status": {                         //设备自身的状态
+    "wifi_connected": bool,           // WiFi连接状态（true=已连接，false=未连接）
+    "mqtt_connected": bool,           // MQTT服务器连接状态（true=在线）
+    "screen_normal": bool,            // 屏幕状态（true=正常工作）
+    "sensor_normal": bool,            // 传感器整体状态（true=全部正常）
+    "power_voltage": bool,            // 系统供电电压（单位：V，用于监控硬件健康）
+    "focus_mode": bool                // 专注模式状态（true=已开启，false=关闭）
+  }
+}
+  }

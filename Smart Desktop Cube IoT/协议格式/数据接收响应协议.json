@@ -1,0 +1,14 @@
+{
+  "code": int,                  // 返回代码
+  "type": string,               //返回类型
+  "msg": string,                // 接收结果说明
+  "timestamp": int,             // 服务器时间戳
+  "receive_status": bool        // 数据是否成功入库
+}
+
+200 = 成功
+401 = Token无效
+402 = 响应超时
+403 = 设备未授权
+400 = 数据格式错误
+500 = 服务器错误
