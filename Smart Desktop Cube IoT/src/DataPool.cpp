@@ -12,6 +12,12 @@ SensorData sensorData = {
   .human_duration = 0
 };
 
+// WiFi 默认配置
+WiFiConfig_t wifi_config = {
+  "tianchuangya",
+  "qzl610929"
+};
+
 DeviceStatus status = {
   .wifi_connected = false,
   .mqtt_connected = false,

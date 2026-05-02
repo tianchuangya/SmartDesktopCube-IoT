@@ -28,6 +28,7 @@ void Device_InitAll(void)
     // ========= 初始化 光照传感器=========
     delay(200);
     Wire_BH1750.begin(2, 1); // SDA 2, SCL 1
+    Wire_BH1750.setClock(100000);
     if (bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE,0x23, &Wire_BH1750)) {
      status.sensor_bh1750 = true; 
      Serial.println("✅ BH1750 初始化成功");  

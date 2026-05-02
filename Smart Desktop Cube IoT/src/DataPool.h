@@ -13,6 +13,12 @@ typedef struct {
   int human_duration;// 人体存在持续时间
 } SensorData;
 
+// WiFi 配置
+typedef struct {
+    char ssid[64];     // WiFi 名称
+    char pwd[64];      // WiFi 密码
+} WiFiConfig_t;
+
 // 设备状态结构体
 typedef struct {
   bool wifi_connected;  // WiFi连接状态
@@ -43,8 +49,9 @@ typedef struct {
 
 // 全局数据池实例声明（外部可访问）
 extern SensorData sensorData;
+extern WiFiConfig_t  wifi_config;
 extern DeviceStatus status;
 extern CommandData cmd;
 extern SecurityData security;
 
-#endif // DATAPOOL_H
+#endif 

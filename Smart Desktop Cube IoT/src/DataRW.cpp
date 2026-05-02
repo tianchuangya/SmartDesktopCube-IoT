@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
 #include <DFRobot_ENS160.h>
-
+#include "DataPool.h"
 // 光照传感器硬件
 extern TwoWire Wire_BH1750;
 extern BH1750 bh1750;
@@ -13,6 +13,7 @@ extern DFRobot_ENS160_I2C ens;
 // 读取所有传感器数据 → 数据池
 void DataRead_ReadAll(void)
 {
+    status.run_seconds+=1;
     // ==================== 读取 Bh1750光照 ====================
   if (status.sensor_bh1750) {
     sensorData.light = bh1750.readLightLevel();
@@ -68,7 +69,12 @@ void ALLData_ToSerial(void)
     if (status.sensor_ens160)
         Serial.printf("TVOC: %.0f | eCO2: %.0f\n", sensorData.tvoc, sensorData.eco2);
     else
-        Serial.println("空气质量: 离线");
+        Serial.print("空气质量: 离线");
 
+    //wifi连接
+    if(status.wifi_connected)
+        Serial.printf("wifi名称: %s | wifi密码: %s | ", wifi_config.ssid, wifi_config.pwd);
+    else 
+        Serial.println("WiFi状态: 离线");
     Serial.println("----------------------------------------");
 }
