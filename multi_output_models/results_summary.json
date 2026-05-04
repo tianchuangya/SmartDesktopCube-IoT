@@ -1,0 +1,80 @@
+[
+  {
+    "target": "pm1",
+    "r2": 0.9389,
+    "r2_std": 0.018,
+    "rmse": 0.544,
+    "mae": 0.2296,
+    "feature_importance": {
+      "temperature": 104258.09,
+      "co2": 136083.87,
+      "tvoc": 143525.9,
+      "humidity": 515923.5
+    }
+  },
+  {
+    "target": "co",
+    "r2": 0.5249,
+    "r2_std": 0.0205,
+    "rmse": 10.7683,
+    "mae": 5.5033,
+    "feature_importance": {
+      "temperature": 6331921.87,
+      "co2": 15498599.95,
+      "tvoc": 6275326.28,
+      "humidity": 7084895.08
+    }
+  },
+  {
+    "target": "so2",
+    "r2": 0.8062,
+    "r2_std": 0.0757,
+    "rmse": 43.3749,
+    "mae": 13.8948,
+    "feature_importance": {
+      "temperature": 566592171.82,
+      "co2": 322966375.03,
+      "tvoc": 403288727.09,
+      "humidity": 558403002.53
+    }
+  },
+  {
+    "target": "no2",
+    "r2": 0.955,
+    "r2_std": 0.0053,
+    "rmse": 2.606,
+    "mae": 1.5152,
+    "feature_importance": {
+      "temperature": 4309842.55,
+      "co2": 3319034.26,
+      "tvoc": 3894592.07,
+      "humidity": 15993031.59
+    }
+  },
+  {
+    "target": "o3",
+    "r2": 0.9313,
+    "r2_std": 0.0124,
+    "rmse": 1.0093,
+    "mae": 0.5473,
+    "feature_importance": {
+      "temperature": 690135.06,
+      "co2": 508634.21,
+      "tvoc": 479612.89,
+      "humidity": 1005905.43
+    }
+  },
+  {
+    "target": "pm2_5",
+    "r2": 0.9339,
+    "r2_std": 0.0275,
+    "rmse": 0.8083,
+    "mae": 0.2991,
+    "feature_importance": {
+      "temperature": 179299.0,
+      "co2": 323897.21,
+      "tvoc": 216565.96,
+      "humidity": 1158728.2
+    }
+  }
+]
