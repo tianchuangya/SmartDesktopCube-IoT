@@ -20,7 +20,6 @@
     "mqtt_connected": bool,           // MQTT服务器连接状态（true=在线）
     "screen_normal": bool,            // 屏幕状态（true=正常工作）
     "sensor_normal": bool,            // 传感器整体状态（true=全部正常）
-    "power_voltage": bool,            // 系统供电电压（单位：V，用于监控硬件健康）
     "focus_mode": bool                // 专注模式状态（true=已开启，false=关闭）
   }
 }

@@ -3,33 +3,32 @@
 #include <WiFi.h>
 
 void WiFiManager_Connect(void) {
-    // 当前 WiFi 状态
-    wl_status_t status_wifi = WiFi.status();
+   wl_status_t status_wifi = WiFi.status();
 
     // 只有断开状态才去重连
-    
-    status.wifi_connected = false;
-    WiFi.disconnect();//清除旧的 WiFi 连接状态
-    delay(100);
-    // 开始连接
-    WiFi.begin(wifi_config.ssid, wifi_config.pwd);
+    if (status_wifi != WL_CONNECTED) 
+    {
+        WiFi.disconnect();//清除旧的 WiFi 连接状态
+        delay(100);
+        WiFi.begin(wifi_config.ssid, wifi_config.pwd);
       
-    // 等待结果（最多等 3 秒）
-    int retry = 0;
-    while (WiFi.status() != WL_CONNECTED && retry < 6) {
-        Serial.print("[WiFi] 寻找WiFi: ");
-        Serial.print(wifi_config.ssid); 
-         int count=0;
-         while(count<=retry){
-            Serial.print(".");
-            count++;
-            delay(100);
-         }
-        Serial.println("");
-        retry++;
+        // 等待结果（最多等 3 秒）
+        int retry = 0;
+        while (WiFi.status() != WL_CONNECTED && retry < 6) {
+            Serial.print("[WiFi] 寻找WiFi: ");
+            Serial.print(wifi_config.ssid); 
+            int count=0;
+            while(count<=retry){
+                Serial.print(".");
+                count++;
+                delay(100);
+            }
+            Serial.println("");
+            retry++;
+        }
     }
-    
 
+    // 统一更新WiFi状态
     switch (WiFi.status()) {
         case WL_CONNECTED:
             Serial.println("[WiFi] 连接成功 ✅");

@@ -28,8 +28,11 @@ typedef struct {
   bool sensor_bh1750;    // 光照传感器
   bool sensor_aht21;     // 温湿度传感器
   bool sensor_ens160;    // 空气质量传感器
-  uint32_t boot_time;        // 开机时间戳（毫秒）
-  uint32_t run_seconds;      // 已运行秒数
+  uint32_t boot_time;    // 开机时间戳（毫秒）
+  uint32_t run_seconds;  // 已运行秒数
+  bool focus_mode;       //专注模式
+  bool device_lock;      //设备锁
+
 } DeviceStatus;
 
 // 指令数据结构体
@@ -47,11 +50,80 @@ typedef struct {
   bool token_ok;    // 令牌是否有效
 } SecurityData;
 
+//角色状态图片（60×60）
+typedef struct {
+    const uint8_t* normal;      // 正常：微笑
+    const uint8_t* remind;      // 普通提醒：担忧/问号
+    const uint8_t* alert;       // 严重告警：紧张/警告
+    const uint8_t* focus;       // 专注模式：安静陪伴
+    const uint8_t* celebrate;   // 完成/恢复：点赞
+    const uint8_t* guide;       // 菜单向导：指引
+} RoleImg_t;
+
+// AQI 等级图片（60*60）
+typedef struct {
+    const uint8_t* aqi_1;  // 优
+    const uint8_t* aqi_2;  // 良
+    const uint8_t* aqi_3;  // 中
+    const uint8_t* aqi_4;  // 差
+    const uint8_t* aqi_5;  // 劣
+} AqiBgImg_t;
+
+
+//开机启动动画（320×240）
+typedef struct {
+    const uint8_t* sleep;    // 睡觉
+    const uint8_t* wake_1;   // 苏醒1
+    const uint8_t* wake_2;   // 苏醒2
+    const uint8_t* welcome;  // 欢迎
+    const uint8_t* logo;     // LOGO
+} BootImg_t;
+
+
+//主界面背景（320×240）
+typedef struct {
+    const uint8_t* main;     // 主界面
+    const uint8_t* focus;    // 专注模式
+    const uint8_t* menu;     // 菜单界面
+    const uint8_t* report;   // 专注报告
+    const uint8_t* setting;  // 设置界面
+} BgImg_t;
+
+
+//菜单/选项卡图片（UI控件）
+typedef struct {
+    const uint8_t* tab_air;      // 空气质量选项卡
+    const uint8_t* tab_env;      // 环境数据选项卡
+    const uint8_t* tab_time;     // 计时选项卡
+    const uint8_t* tab_set;      // 设置选项卡
+    const uint8_t* btn_back;     // 返回按钮
+    const uint8_t* btn_ok;       // 确认按钮
+} UIControlImg_t;
+
+
+//专注模式相关图片
+typedef struct {
+    const uint8_t* focus_start;   // 开始专注
+    const uint8_t* focus_running; // 专注中
+    const uint8_t* focus_end;     // 结束专注
+} FocusImg_t;
+
+//总图片池
+typedef struct {
+    RoleImg_t       role;    // 角色
+    AqiBgImg_t      aqi;     // AQI等级背景
+    BootImg_t       boot;    // 开机动画
+    BgImg_t         bg;      // 背景
+    UIControlImg_t  ui;      // UI控件
+    FocusImg_t      focus;   // 专注模式
+} ImagePool_t;
+
+
 // 全局数据池实例声明（外部可访问）
 extern SensorData sensorData;
 extern WiFiConfig_t  wifi_config;
 extern DeviceStatus status;
 extern CommandData cmd;
 extern SecurityData security;
-
+extern ImagePool_t    img; 
 #endif 
