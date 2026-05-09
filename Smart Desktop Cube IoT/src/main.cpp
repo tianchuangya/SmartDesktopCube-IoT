@@ -19,10 +19,19 @@ void setup()
 
     // 创建锁
     dataMutex = xSemaphoreCreateMutex();
-    xTaskCreatePinnedToCore(Task_Control_Init,"core 1",16384,NULL,2,NULL,1);//核心1：本地控制大任务
-    xTaskCreatePinnedToCore(Task_Network_Init,"core 0",8192,NULL,1,NULL,0);//核心0：网络任务
-    xTaskCreatePinnedToCore(Task_MqttReconnect, "mqtt_recon", 4096, NULL, 2, NULL, 0);    // MQTT重连与维护
-    xTaskCreatePinnedToCore(mqttHeartbeatTask, "mqtt_task", 4096, NULL, 1, NULL, 0);
+     // 核心 1：本地控制 (高频实时任务)
+    xTaskCreatePinnedToCore(Task_Realtime_Control, "RealtimeCtrl", 8192, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(Task_DataRead_Init,   "DataRead",    4096, NULL, 2, NULL, 1);
+    // MQTT 重连,核心1
+    xTaskCreatePinnedToCore(Task_MqttReconnect,    "MQTTRecon",   8192, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(Task_Focus_Init,       "FocusReport", 4096, NULL, 1, NULL, 1);
+    // 核心 0：网络相关 (非阻塞)
+    xTaskCreatePinnedToCore(Task_Network_Init,     "WiFi",        4096, NULL, 0, NULL, 0);
+    xTaskCreatePinnedToCore(mqttHeartbeatTask,     "Heartbeat",   8192, NULL, 1, NULL, 0);
+    
+    
+    
+
 }
 
 void loop()

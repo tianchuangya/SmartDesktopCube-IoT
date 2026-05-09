@@ -75,6 +75,12 @@ void ALLData_ToSerial(void)
     if(status.wifi_connected)
         Serial.printf("wifi名称: %s | wifi密码: %s | ", wifi_config.ssid, wifi_config.pwd);
     else 
-        Serial.println("WiFi状态: 离线");
+        Serial.println("WiFi状态: 离线|");
+
+    //专注模式
+    if(status.focus_mode)
+         Serial.printf("专注模式：启用 |");
+    else 
+        Serial.println("专注模式：关闭 |");
     Serial.println("----------------------------------------");
 }

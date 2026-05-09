@@ -18,6 +18,17 @@ WiFiConfig_t wifi_config = {
   "qzl610929"
 };
 
+FocusConfig_t focusConfig = {
+    .radar_max_distance   = 60,    // 1.5米
+    .radar_sensitivity    = 5,      // 中等灵敏度
+    .leave_timeout_ms     = 5000,   // 5秒
+    .auto_enter_delay_ms  = 5000,   // 5秒
+    .human_distance       = 0,       // 检测到的人体距离（cm），无人时为0
+    .is_human_exist       =false,   // 是否有人
+    .auto_enter_enabled   = true,   // 默认启用自动进入
+    .auto_exit_enabled    = true    // 默认启用自动退出
+};
+
 DeviceStatus status = {
   .wifi_connected = false,
   .mqtt_connected = false,

@@ -19,6 +19,18 @@ typedef struct {
     char pwd[64];      // WiFi 密码
 } WiFiConfig_t;
 
+// 专注模式配置
+typedef struct {
+    uint16_t radar_max_distance;    // 雷达最大探测距离（cm），默认150
+    uint8_t  radar_sensitivity;     // 雷达灵敏度（1-10），默认5
+    uint32_t leave_timeout_ms;      // 离开超时（毫秒），超过此时间无人认为退出专注，默认30000
+    uint32_t auto_enter_delay_ms;   // 自动进入专注延时（毫秒），持续有人超过此时间自动进入，默认5000
+    uint16_t human_distance;        // 检测到的人体距离（cm），无人时为0
+    bool is_human_exist;            // 是否有人
+    bool     auto_enter_enabled;    // 是否启用自动进入专注模式
+    bool     auto_exit_enabled;     // 是否启用自动退出专注模式
+} FocusConfig_t;
+
 // 设备状态结构体
 typedef struct {
   bool wifi_connected;  // WiFi连接状态
@@ -126,4 +138,5 @@ extern DeviceStatus status;
 extern CommandData cmd;
 extern SecurityData security;
 extern ImagePool_t    img; 
+extern FocusConfig_t focusConfig;
 #endif 

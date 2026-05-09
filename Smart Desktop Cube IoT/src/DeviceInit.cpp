@@ -5,6 +5,7 @@
 #include "DataPool.h"
 #include <Adafruit_AHTX0.h>
 #include <DFRobot_ENS160.h>
+#include "radar.h"
 // 硬件对象定义（全局）
 TwoWire Wire_BH1750(0);   // 光照
 TwoWire Wire_AHTENS(1);   // 温湿度 + 空气质量 一体模块
@@ -62,4 +63,8 @@ void Device_InitAll(void)
         Serial.println("❌ ENS160 初始化失败");
         status.sensor_ens160 = false;
     }
+
+    //==================== LD2410c ====================
+    delay(200);
+    radar_init();  // 雷达初始化函数
 }
