@@ -10,7 +10,8 @@ typedef struct {
   float light;       // 光照强度
   float pm25;        // PM2.5浓度
   int aqi;           // 空气质量指数
-  int human_duration;// 人体存在持续时间
+  int human_duration;     // 人体存在持续时间
+  uint32_t focus_duration; // 专注模式持续秒数
 } SensorData;
 
 // WiFi 配置
@@ -44,7 +45,6 @@ typedef struct {
   uint32_t run_seconds;  // 已运行秒数
   bool focus_mode;       //专注模式
   bool device_lock;      //设备锁
-
 } DeviceStatus;
 
 // 指令数据结构体

@@ -26,7 +26,13 @@ static void mqttCallback(char* topic, byte* payload, unsigned int len) {
     status.device_lock = doc["lock"].as<bool>();
     }
     if (doc["focus"].is<bool>()) {
-        status.focus_mode = doc["focus"].as<bool>();
+        bool new_focus = doc["focus"].as<bool>();
+        status.focus_mode = new_focus;
+        if (new_focus) {
+            sensorData.focus_duration = 0;
+        } else {
+            sensorData.focus_duration = 0;
+        }
 }
 }
 
