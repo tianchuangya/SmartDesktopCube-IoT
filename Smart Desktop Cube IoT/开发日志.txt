@@ -27,7 +27,7 @@ BH175模块初始化失败【已解决】
 6-17
 ✅ OTA 功能全部完成
 
-  新建：OTAManager（HTTP流式下载+Flash写入+校验）、OTAScreen（锁屏进度UI）、partitions_16MB.csv
+  新建：OTAManager（HTTP流式下载+Flash写入+校验）、OTAScreen（锁屏进度UI）、partitions_8MB.csv（factory 3MB + ota_0 3MB + spiffs 2MB）
   修改：platformio.ini、DataPool、MqttCom（TLS+OTA指令回调）、main.cpp（注册OTA Task）、settingsScreen（检查更新按钮）
   流程：MQTT下发ota_update → 版本比对 → HTTP下载 → Update.write() → 校验重启
   触发：MQTT远程推送 + 设备手动检查更新
