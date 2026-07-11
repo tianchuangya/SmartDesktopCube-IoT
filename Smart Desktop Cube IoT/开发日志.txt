@@ -1,0 +1,49 @@
+2026-5-23
+屏幕触摸由IRQ判断换成压力值判断
+
+
+2026-5-27
+BH175模块初始化失败【已解决】
+新增ui界面
+2026-5-29
+ 1. DataPool.h — 数据结构调整
+  - SensorData 新增 uint32_t focus_duration — 专注持续秒数的计数器
+  - DeviceStatus 移除 focus_start_ms — 不再需要时间戳
+
+  2. focus_mode.cpp — 全权管理 focus_duration（核心逻辑）
+  - 进入专注：sensorData.focus_duration = 0，记录递增基准时刻
+  - 退出专注：sensorData.focus_duration = 0
+  - 专注中：每 1000ms 自增 sensorData.focus_duration++
+  - 不再依赖 status.focus_start_ms
+
+  3. MqttCom.cpp — MQTT 远程控制同步
+  - MQTT 触发进入/退出时，同样重置 sensorData.focus_duration = 0
+
+  4. custom.c — UI 直接读取，换算 HH:MM:SS
+  - 原来：(millis() - focus_start_ms) / 1000 计算 MM:SS
+  - 现在：直接读 sensorData.focus_duration，换算为 HH:MM:SS
+  - 标签宽度从 200→240，适配8字符
+
+6-17
+✅ OTA 功能全部完成
+
+  新建：OTAManager（HTTP流式下载+Flash写入+校验）、OTAScreen（锁屏进度UI）、partitions_16MB.csv
+  修改：platformio.ini、DataPool、MqttCom（TLS+OTA指令回调）、main.cpp（注册OTA Task）、settingsScreen（检查更新按钮）
+  流程：MQTT下发ota_update → 版本比对 → HTTP下载 → Update.write() → 校验重启
+  触发：MQTT远程推送 + 设备手动检查更新
+  后续：改FW_VERSION发新版 → 上传.bin到OSS → MQTT下发URL即可推送更新
+
+7-12
+✅ 全链路修复：启动→WiFi→内存→MQTT→NTP→传感器→UI，硬件完全跑通
+
+  1. 启动死循环 — 板子8MB Flash但用16MB分区表，移除board_build.partitions用默认
+  2. WiFi连接死循环 — WiFi.begin()异步需5~15s，旧代码每2.5s断开重来，加状态机15s超时重试
+  3. LVGL内存 — 128KB静态buffer占内部RAM导致WiFi栈崩溃，LV_MEM_CUSTOM=1移到PSRAM（RAM 76%→36%）
+  4. MQTT时序 — subscribe()后SUBACK未到就发握手，handshake_ack丢失。加loop+delay(300)等SUBACK；握手重试120s→10s；setBufferSize(512)
+  5. NTP时间 — 失败后永不重试+超时太短，改为每30s重试+10s等待+configTzTime
+  6. ENS160传感器 — 每次读调setTempAndHum干扰+异常无恢复，改每60s补偿+连续异常自动IDLE→STANDARD复位
+  7. AQI — 1-5等级改为标准0-500+线性插值，eCO2/TVOC取更差
+  8. UI envScreen — 标签更新覆盖名称，加回"温度:""湿度:"等前缀
+  9. UI mainScreen — 左上角时间从未更新，加localtime()每200ms刷新
+  10. MQTT调试 — 回调打印原始JSON，订阅三个topic（status/data/control）
+  11. 版本号 — FW_VERSION加v前缀与后端对齐，OTA compareVersion兼容v前缀
