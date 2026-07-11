@@ -1,6 +1,9 @@
 #ifndef DATAPOOL_H
 #define DATAPOOL_H
 #include <stdint.h>
+
+// ==================== 固件版本号（手动递增）====================
+#define FW_VERSION "v1.0.0"
 // 传感器数据结构体
 typedef struct {
   float temp;        // 温度
@@ -30,6 +33,8 @@ typedef struct {
     bool is_human_exist;            // 是否有人
     bool     auto_enter_enabled;    // 是否启用自动进入专注模式
     bool     auto_exit_enabled;     // 是否启用自动退出专注模式
+    uint32_t focus_cooldown_ms;     // 手动退出后冷却时间（毫秒），冷却期内禁止自动进入，默认30000
+    uint32_t last_manual_exit_ms;   // 上次手动退出专注的时间戳（毫秒），0=不在冷却期
 } FocusConfig_t;
 
 // 设备状态结构体
@@ -43,8 +48,15 @@ typedef struct {
   bool sensor_ens160;    // 空气质量传感器
   uint32_t boot_time;    // 开机时间戳（毫秒）
   uint32_t run_seconds;  // 已运行秒数
-  bool focus_mode;       //专注模式
-  bool device_lock;      //设备锁
+  bool focus_mode;            // 专注模式
+  bool device_lock;           // 设备锁
+  bool request_focus_screen;  // 自动进入专注时，请求UI切换到fouseScreen
+  bool on_main_screen;        // 当前是否在mainScreen（UI层每帧更新）
+  bool ota_in_progress;       // OTA 是否正在进行
+  int  ota_progress;          // OTA 进度 0-100
+  char ota_new_version[32];   // OTA 新固件版本号
+  char ota_status_text[64];   // OTA 状态描述文字
+  bool ota_check_requested;   // 用户手动请求检查更新
 } DeviceStatus;
 
 // 指令数据结构体
@@ -57,9 +69,11 @@ typedef struct {
 
 // 安全认证数据结构体
 typedef struct {
-  char did[32];     // 设备唯一标识
-  char token[64];   // 认证令牌
-  bool token_ok;    // 令牌是否有效
+  char did[32];            // 设备唯一标识（JSON消息中使用）
+  char mqtt_client_id[32]; // MQTT Client ID（MAC地址生成，如 cube_AABBCCDDEEFF）
+  char token[64];          // 认证令牌
+  bool token_ok;           // 令牌是否有效
+  uint32_t token_expire_time; // token 过期时间戳（Unix时间，秒），0=未设置
 } SecurityData;
 
 //角色状态图片（60×60）

@@ -5,5 +5,6 @@
 
 bool WiFiManager_IsConnected(void);
 void WiFiManager_Connect(void);
+bool WiFiManager_IsTimeSynced(void);  // NTP 时间是否已同步
 
 #endif
