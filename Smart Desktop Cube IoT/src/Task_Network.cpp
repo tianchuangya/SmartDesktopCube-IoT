@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "WIFiManager.h"
-#include "MqttTask.h"           // 心跳与数据上报任务
 #include "MqttReconnectTask.h"
 #include "MqttCom.h"
 #include "DataPool.h"

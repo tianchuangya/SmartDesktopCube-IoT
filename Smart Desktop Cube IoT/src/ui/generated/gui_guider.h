@@ -17,7 +17,7 @@ extern "C" {
 
 typedef struct
 {
-  
+
 	lv_obj_t *bootScreen;
 	bool bootScreen_del;
 	lv_obj_t *bootScreen_img_boot_sleep;
@@ -34,7 +34,8 @@ typedef struct
 	lv_obj_t *mainScreen_label_Prompt;
 	lv_obj_t *mainScreen_img_role;
 	lv_obj_t *mainScreen_label_aqi_val;
-	lv_obj_t *mainScreen_img_1;
+	lv_obj_t *mainScreen_img_boot_logo;
+	lv_obj_t *mainScreen_img_wifi;
 	lv_obj_t *aircreen;
 	bool aircreen_del;
 	lv_obj_t *aircreen_label_eco2_val;
@@ -54,16 +55,31 @@ typedef struct
 	lv_obj_t *envScreen_label_tvoc;
 	lv_obj_t *envScreen_label_eco2;
 	lv_obj_t *envScreen_label_title;
+	lv_obj_t *envScreen_label_pm25;
 	lv_obj_t *fouseScreen;
 	bool fouseScreen_del;
 	lv_obj_t *fouseScreen_btn_1;
 	lv_obj_t *fouseScreen_btn_1_label;
-	lv_obj_t *fouseScreen_label_timer;
+	lv_obj_t *fouseScreen_label_focus_timer;
 	lv_obj_t *fouseScreen_label_light_info;
 	lv_obj_t *fouseScreen_label_status;
 	lv_obj_t *fouseScreen_img_role_focus;
+	lv_obj_t *fouseScreen_label_1;
 	lv_obj_t *settingsScreen;
 	bool settingsScreen_del;
+	lv_obj_t *settingsScreen_slider_Brightness;
+	lv_obj_t *settingsScreen_sw_open;
+	lv_obj_t *settingsScreen_label_Bluetooth_light;
+	lv_obj_t *settingsScreen_label_1;
+	lv_obj_t *settingsScreen_label_2;
+	lv_obj_t *settingsScreen_label_3;
+	lv_obj_t *settingsScreen_slider_Color_temperature;
+	lv_obj_t *settingsScreen_btn_1;
+	lv_obj_t *settingsScreen_btn_1_label;
+	lv_obj_t *settingsScreen_label_4;
+	lv_obj_t *settingsScreen_label_ble_status;
+	lv_obj_t *settingsScreen_btn_ota;
+	lv_obj_t *settingsScreen_btn_ota_label;
 	lv_obj_t *lockScreen;
 	bool lockScreen_del;
 	lv_obj_t *lockScreen_img_1;
@@ -105,6 +121,7 @@ LV_IMG_DECLARE(_img_boot_sleep_22_alpha_168x155);
 LV_IMG_DECLARE(_img_bg_main_320x240);
 LV_IMG_DECLARE(_img_role_normal_alpha_60x60);
 LV_IMG_DECLARE(_img_boot_logo_alpha_60x60);
+LV_IMG_DECLARE(_wifion_alpha_28x28);
 
 LV_IMG_DECLARE(_img_bg_main_320x240);
 LV_IMG_DECLARE(_img_role_normal_alpha_60x60);
@@ -113,6 +130,8 @@ LV_IMG_DECLARE(_img_bg_main_320x240);
 
 LV_IMG_DECLARE(_img_bg_focus_320x240);
 LV_IMG_DECLARE(_img_role_focus_alpha_60x60);
+
+LV_IMG_DECLARE(_img_bg_main_320x240);
 
 LV_IMG_DECLARE(_img_bg_report_320x240);
 LV_IMG_DECLARE(_img_role_alert_alpha_100x100);
@@ -124,6 +143,8 @@ LV_FONT_DECLARE(lv_font_yezi_hei_15)
 LV_FONT_DECLARE(lv_font_yezi_hei_18)
 LV_FONT_DECLARE(lv_font_montserratMedium_40)
 LV_FONT_DECLARE(lv_font_yezi_hei_14)
+LV_FONT_DECLARE(lv_font_yezi_hei_20)
+LV_FONT_DECLARE(lv_font_montserratMedium_16)
 
 
 #ifdef __cplusplus

@@ -1,0 +1,1 @@
+GEN_CSRCS += lv_font_yezi_hei_10.c lv_font_yezi_hei_15.c lv_font_yezi_hei_17.c lv_font_yezi_hei_13.c lv_font_yezi_hei_16.c lv_font_yezi_hei_20.c lv_font_montserratMedium_10.c

@@ -224,6 +224,5 @@ void setup_scr_aircreen(lv_ui *ui)
     //Update current screen layout.
     lv_obj_update_layout(ui->aircreen);
 
-    //Init events for screen.
-    events_init_aircreen(ui);
+    // events_init_aircreen 已在 events_init() 统一调用，此处删除避免双重注册
 }

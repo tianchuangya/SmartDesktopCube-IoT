@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>智能桌面魔方 - 适配320x240</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #1e1e2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+    }
+    .device-frame {
+      width: 320px;
+      height: 240px;
+      background: #121212;
+      border-radius: 36px;
+      padding: 10px; /* 略微减小，让内部更大 */
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .screen-container {
+      width: 100%;
+      height: 100%;
+      background: #1a1a2e;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      color: #eee;
+      font-size: 12px; /* 基础字体缩小 */
+      user-select: none;
+    }
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 10px; /* 减小内边距 */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: none;
+      flex-direction: column;
+      transition: opacity 0.2s;
+    }
+    .screen.active {
+      display: flex;
+    }
+    /* 开机画面 */
+    .boot-screen {
+      background: #0d0d1a;
+      justify-content: center;
+      align-items: center;
+    }
+    .boot-role-img {
+      width: 70px; /* 适当缩小 */
+      height: auto;
+      animation: wakeUp 1.5s ease-out forwards;
+    }
+    @keyframes wakeUp {
+      0% { transform: scale(0.8); opacity: 0.2; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .boot-text {
+      margin-top: 12px;
+      color: #ccccdd;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    /* 状态栏 */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .time {
+      font-size: 14px;
+      font-weight: bold;
+      color: #fff;
+    }
+    /* 角色部件 */
+    .role-widget {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .role-avatar-img {
+      width: 50px; /* 屏幕小，角色图显示为50px宽 */
+      height: auto;
+      transition: transform 0.15s;
+    }
+    .role-avatar-img:active {
+      transform: scale(0.9);
+    }
+    .role-label {
+      font-size: 9px;
+      color: #fff;
+      margin-top: 2px;
+      text-shadow: 1px 1px 2px black;
+    }
+    .fallback-emoji {
+      font-size: 40px;
+      display: none;
+    }
+    .role-worry { filter: grayscale(0.2); opacity: 0.9; }
+    .role-alert { animation: shake 0.5s infinite; }
+    .role-calm { opacity: 0.9; filter: brightness(0.9); }
+    .role-lock { filter: grayscale(1); opacity: 0.8; }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      50% { transform: translateX(2px); }
+      75% { transform: translateX(-1px); }
+      100% { transform: translateX(0); }
+    }
+    /* 菜单弹窗 */
+    .popup-menu {
+      position: absolute;
+      bottom: 70px; /* 提高以防止被裁剪 */
+      right: 8px;
+      background: rgba(42,42,60,0.95);
+      border-radius: 12px;
+      padding: 4px 0;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+      z-index: 20;
+      min-width: 90px;
+      backdrop-filter: blur(4px);
+    }
+    .popup-menu.active {
+      display: flex;
+    }
+    .menu-item {
+      padding: 6px 14px;
+      font-size: 11px;
+      color: #ddd;
+      cursor: pointer;
+      white-space: nowrap;
+      text-shadow: 1px 1px 2px black;
+    }
+    .menu-item:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    /* 数据卡片 */
+    .data-row {
+      display: flex;
+      justify-content: space-around;
+      margin: 6px 0;
+    }
+    .data-card {
+      background: rgba(37,37,64,0.8);
+      border-radius: 12px;
+      padding: 6px 8px;
+      text-align: center;
+      flex: 1;
+      margin: 0 3px;
+      backdrop-filter: blur(3px);
+      color: white;
+      text-shadow: 1px 1px 2px black;
+    }
+    .data-value {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .data-label {
+      font-size: 9px;
+      color: #ddd;
+    }
+    .aqi-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .aqi-good { background: #4caf50; color: white; }
+    .aqi-moderate { background: #ff9800; color: black; }
+    .aqi-bad { background: #f44336; color: white; }
+    .btn {
+      background: rgba(58,58,85,0.85);
+      border: none;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      cursor: pointer;
+      margin: 1px;
+      backdrop-filter: blur(3px);
+      text-shadow: 1px 1px 2px black;
+    }
+    .btn.primary {
+      background: rgba(92,107,192,0.85);
+    }
+    .btn.danger {
+      background: rgba(183,28,28,0.85);
+    }
+    .lock-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+    .lock-icon {
+      font-size: 40px;
+    }
+    .slider {
+      width: 70px;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .focus-timer {
+      font-size: 28px;
+      font-weight: bold;
+      margin: 10px 0;
+      text-shadow: 1px 1px 2px black;
+    }
+    /* 通用文本收缩 */
+    .screen-content {
+      z-index: 1;
+      position: relative;
+    }
+    /* 子页面数据行高度 */
+    .env-data-item {
+      margin: 3px 0;
+      text-shadow: 1px 1px 2px black;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+<div class="device-frame">
+  <div class="screen-container" id="deviceRoot">
+    <!-- 开机画面 -->
+    <div class="screen active boot-screen" id="bootScreen" style="background-image: url('img_bg_main.jpg');">
+      <img class="boot-role-img" src="img_boot_sleep.gif" alt="开机动画">
+      <div class="boot-text">启动中...</div>
+    </div>
+
+    <!-- 主屏幕 -->
+    <div class="screen" id="mainScreen" style="background-image: url('img_bg_main.jpg');">
+      <div class="screen-content">
+        <div class="status-bar">
+          <span id="currentTime">12:36</span>
+          <span>WiFi ✓</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; text-shadow:1px 1px 2px black; font-size:11px;">
+          <span>🌡️ 26°C | 💧 54% | ☀️ 320 lx</span>
+        </div>
+        <div class="data-row">
+          <div class="data-card">
+            <div class="data-value" id="mainAqi">1</div>
+            <div class="data-label">AQI</div>
+          </div>
+          <div class="data-card">
+            <div class="data-value" id="mainEco2">450</div>
+            <div class="data-label">eCO₂ ppm</div>
+          </div>
+        </div>
+        <div style="margin-top:auto; font-size:9px; color:#ddd; text-shadow:1px 1px 2px black;">AI 建议：当前环境舒适</div>
+      </div>
+      <div class="role-widget" id="mainRoleWidget" onclick="toggleMenu()">
+        <img class="role-avatar-img" id="mainRoleImg" src="img_role_celebrate.png" alt="角色">
+        <span class="fallback-emoji" id="mainRoleFallback">😊</span>
+        <div class="role-label">小魔方</div>
+      </div>
+      <div class="popup-menu" id="mainMenu">
+        <div class="menu-item" onclick="showScreen('airScreen')">🌬️ 空气质量</div>
+        <div class="menu-item" onclick="showScreen('envScreen')">📊 环境数据</div>
+        <div class="menu-item" onclick="enterFocusMode()">🧘 进入专注</div>
+        <div class="menu-item" onclick="showScreen('settingsScreen')">⚙️ 设置</div>
+      </div>
+    </div>
+
+    <!-- 空气质量屏幕 -->
+    <div class="screen" id="airScreen" style="background-image: url('img_bg_report.jpg');">
+      <div class="screen-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <button class="btn" onclick="showScreen('mainScreen')">← 返回</button>
+          <span style="text-shadow:1px 1px 2px black; font-size:11px;">空气质量详情</span>
+        </div>
+        <div class="data-row">
+          <div class="data-card"><div class="data-value" id="airTvoc">120</div><div class="data-label">TVOC ppb</div></div>
+          <div class="data-card"><div class="data-value" id="airEco2">450</div><div class="data-label">eCO₂ ppm</div></div>
+        </div>
+        <div style="text-align:center; margin:8px;">
+          <span class="aqi-badge aqi-good" id="airAqiBadge">AQI 1 优</span>
+        </div>
+        <div style="font-size:10px; color:#ddd; text-shadow:1px 1px 2px black;">霉菌风险：低</div>
+      </div>
+    </div>
+
+    <!-- 环境数据屏幕 -->
+    <div class="screen" id="envScreen" style="background-image: url('img_bg_report.jpg');">
+      <div class="screen-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <button class="btn" onclick="showScreen('mainScreen')">← 返回</button>
+          <span style="text-shadow:1px 1px 2px black; font-size:11px;">环境数据</span>
+        </div>
+        <div class="env-data-item">🌡️ 温度: <span id="envTemp">26.3</span>°C</div>
+        <div class="env-data-item">💧 湿度: <span id="envHum">54</span>%</div>
+        <div class="env-data-item">☀️ 光照: <span id="envLight">320</span> lx</div>
+        <div class="env-data-item">📡 TVOC: <span id="envTvoc">120</span> ppb</div>
+        <div class="env-data-item">🌫️ eCO₂: <span id="envEco2">450</span> ppm</div>
+      </div>
+    </div>
+
+    <!-- 专注模式屏幕 -->
+    <div class="screen" id="focusScreen" style="background-image: url('img_bg_focus.jpg');">
+      <div class="screen-content">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button class="btn" onclick="exitFocusMode()">← 退出专注</button>
+          <span style="text-shadow:1px 1px 2px black; font-size:11px;">专注模式</span>
+        </div>
+        <div class="focus-timer" id="focusTimer">00:00</div>
+        <div style="font-size:10px; color:#ddd; text-shadow:1px 1px 2px black;">台灯色温: 3000K 暖光</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+          <img id="focusRoleImg" class="role-avatar-img role-calm" src="img_role_focus.png" alt="专注角色" style="width:40px;">
+          <span id="focusRoleFallback" class="fallback-emoji">😌</span>
+          <div style="font-size:9px; text-shadow:1px 1px 2px black;">安静陪伴中...</div>
+        </div>
+        <button class="btn" style="margin-top:10px;" id="simPresenceBtn" onclick="simulatePresence()">模拟离开</button>
+      </div>
+    </div>
+
+    <!-- 设置屏幕 -->
+    <div class="screen" id="settingsScreen" style="background-image: url('img_bg_menu.jpg');">
+      <div class="screen-content">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <button class="btn" onclick="showScreen('mainScreen')">← 返回</button>
+          <span style="text-shadow:1px 1px 2px black; font-size:11px;">设置</span>
+        </div>
+        <div style="text-shadow:1px 1px 2px black; font-size:11px;">亮度: <input type="range" class="slider" min="10" max="100" value="80"></div>
+        <div style="margin:6px 0; text-shadow:1px 1px 2px black; font-size:11px;">
+          <label><input type="checkbox" id="nightMode"> 夜间模式</label>
+        </div>
+        <button class="btn danger" onclick="lockDevice()">🔒 锁定设备</button>
+        <div style="font-size:9px; color:#ddd; margin-top:4px; text-shadow:1px 1px 2px black;">锁定后需远程解锁</div>
+      </div>
+    </div>
+
+    <!-- 锁定覆盖层 -->
+    <div id="lockOverlay" class="lock-overlay hidden">
+      <img id="lockRoleImg" src="img_role_alert.png" alt="锁定角色" style="width:50px; height:auto; margin-bottom:8px;">
+      <span id="lockRoleFallback" class="fallback-emoji">😠</span>
+      <div style="font-size:16px; font-weight:bold;">设备已锁定</div>
+      <button class="btn primary" style="margin-top:10px;" onclick="unlockDevice()">远程解锁 (模拟)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 数据池与状态
+  let sensorData = {
+    temp: 26.3,
+    hum: 54,
+    light: 320,
+    tvoc: 120,
+    eco2: 450,
+    aqi: 1,
+    moldRisk: '低'
+  };
+  let systemMode = 'normal'; // 'normal', 'focus', 'locked'
+  let isFocus = false;
+  let focusSeconds = 0;
+  let focusInterval = null;
+  let isUserPresent = true;
+  let menuActive = false;
+
+  // 屏幕切换
+  function showScreen(screenId) {
+    if (systemMode === 'locked') return;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+    closeMenu();
+  }
+
+  // 开机动画
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      showScreen('mainScreen');
+    }, 2000);
+  });
+
+  // 时间更新
+  function updateTime() {
+    document.getElementById('currentTime').innerText = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+  }
+  setInterval(updateTime, 1000);
+  updateTime();
+
+  // 传感器模拟
+  function simulateSensors() {
+    sensorData.temp = (26 + Math.random()*2).toFixed(1);
+    sensorData.hum = Math.floor(50 + Math.random()*10);
+    sensorData.light = Math.floor(300 + Math.random()*100);
+    sensorData.tvoc = Math.floor(110 + Math.random()*40);
+    sensorData.eco2 = Math.floor(420 + Math.random()*80);
+    if (sensorData.eco2 < 500) sensorData.aqi = 1;
+    else if (sensorData.eco2 < 800) sensorData.aqi = 2;
+    else if (sensorData.eco2 < 1200) sensorData.aqi = 3;
+    else if (sensorData.eco2 < 1800) sensorData.aqi = 4;
+    else sensorData.aqi = 5;
+    updateAllUI();
+  }
+  setInterval(simulateSensors, 3000);
+
+  function updateAllUI() {
+    document.getElementById('mainAqi').innerText = sensorData.aqi;
+    document.getElementById('mainEco2').innerText = sensorData.eco2;
+    updateRoleExpression();
+
+    document.getElementById('airTvoc').innerText = sensorData.tvoc;
+    document.getElementById('airEco2').innerText = sensorData.eco2;
+    const badge = document.getElementById('airAqiBadge');
+    badge.innerText = `AQI ${sensorData.aqi} ${sensorData.aqi<=2?'优':sensorData.aqi<=3?'良':'差'}`;
+    badge.className = 'aqi-badge ' + (sensorData.aqi<=2?'aqi-good':sensorData.aqi<=3?'aqi-moderate':'aqi-bad');
+
+    document.getElementById('envTemp').innerText = sensorData.temp;
+    document.getElementById('envHum').innerText = sensorData.hum;
+    document.getElementById('envLight').innerText = sensorData.light;
+    document.getElementById('envTvoc').innerText = sensorData.tvoc;
+    document.getElementById('envEco2').innerText = sensorData.eco2;
+  }
+
+  // 角色图片管理
+  function getRoleImageSrc(mode, aqi, isGuide = false) {
+    if (mode === 'locked') return 'img_role_alert.png';
+    if (mode === 'focus') return 'img_role_focus.png';
+    if (isGuide) return 'img_role_celebrate.png'; // 向导临时替代
+
+    if (aqi <= 1) return 'img_role_celebrate.png';
+    else if (aqi === 2) return 'img_role_alert.png'; // 提醒临时替代
+    else return 'img_role_alert.png';
+  }
+
+  function setRoleImage(imgElement, fallbackElement, mode, aqi, isGuide = false) {
+    const src = getRoleImageSrc(mode, aqi, isGuide);
+    imgElement.src = src;
+    const onError = () => {
+      imgElement.style.display = 'none';
+      if (fallbackElement) fallbackElement.style.display = 'inline';
+    };
+    const onLoad = () => {
+      imgElement.style.display = 'inline';
+      if (fallbackElement) fallbackElement.style.display = 'none';
+    };
+    imgElement.onerror = onError;
+    imgElement.onload = onLoad;
+    if (imgElement.complete) {
+      if (imgElement.naturalWidth === 0) onError();
+      else onLoad();
+    }
+  }
+
+  function updateRoleExpression() {
+    const mainImg = document.getElementById('mainRoleImg');
+    const mainFallback = document.getElementById('mainRoleFallback');
+    setRoleImage(mainImg, mainFallback, systemMode, sensorData.aqi, menuActive);
+  }
+
+  // 菜单与向导
+  function toggleMenu() {
+    if (systemMode === 'locked') return;
+    const menu = document.getElementById('mainMenu');
+    menu.classList.toggle('active');
+    menuActive = menu.classList.contains('active');
+    updateRoleExpression();
+  }
+
+  function closeMenu() {
+    const menu = document.getElementById('mainMenu');
+    menu.classList.remove('active');
+    menuActive = false;
+    updateRoleExpression();
+  }
+
+  // 专注模式
+  function enterFocusMode() {
+    systemMode = 'focus';
+    isFocus = true;
+    focusSeconds = 0;
+    showScreen('focusScreen');
+    updateRoleExpression();
+    if (focusInterval) clearInterval(focusInterval);
+    focusInterval = setInterval(() => {
+      focusSeconds++;
+      const mins = Math.floor(focusSeconds/60).toString().padStart(2,'0');
+      const secs = (focusSeconds%60).toString().padStart(2,'0');
+      document.getElementById('focusTimer').innerText = `${mins}:${secs}`;
+    }, 1000);
+    const focusImg = document.getElementById('focusRoleImg');
+    const focusFallback = document.getElementById('focusRoleFallback');
+    setRoleImage(focusImg, focusFallback, 'focus', 1);
+  }
+
+  function exitFocusMode() {
+    systemMode = 'normal';
+    isFocus = false;
+    clearInterval(focusInterval);
+    focusInterval = null;
+    showScreen('mainScreen');
+    updateRoleExpression();
+  }
+
+  function simulatePresence() {
+    isUserPresent = !isUserPresent;
+    if (!isUserPresent && systemMode === 'focus') {
+      setTimeout(() => {
+        if (!isUserPresent) {
+          exitFocusMode();
+          alert('检测到离开，专注模式已结束');
+        }
+      }, 3000);
+    }
+    document.getElementById('simPresenceBtn').innerText = isUserPresent ? '模拟离开' : '模拟回来';
+  }
+
+  // 远程锁定
+  function lockDevice() {
+    systemMode = 'locked';
+    document.getElementById('lockOverlay').classList.remove('hidden');
+    const lockImg = document.getElementById('lockRoleImg');
+    const lockFallback = document.getElementById('lockRoleFallback');
+    setRoleImage(lockImg, lockFallback, 'locked', 1);
+    updateRoleExpression();
+    closeMenu();
+  }
+
+  function unlockDevice() {
+    systemMode = 'normal';
+    document.getElementById('lockOverlay').classList.add('hidden');
+    updateRoleExpression();
+  }
+
+  // 夜间模式
+  document.getElementById('nightMode').addEventListener('change', function(e) {
+    document.querySelector('.screen-container').style.filter = e.target.checked ? 'brightness(0.7) sepia(0.3)' : 'none';
+  });
+</script>
+</body>
+</html>

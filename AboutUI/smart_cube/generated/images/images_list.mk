@@ -1,0 +1,1 @@
+GEN_CSRCS += _img_bg_main_320x240.c _img_boot_sleep_10_alpha_80x60.c _img_role_celebrate_alpha_50x42.c _img_role_focus_alpha_40x40.c _img_role_alert_alpha_50x50.c

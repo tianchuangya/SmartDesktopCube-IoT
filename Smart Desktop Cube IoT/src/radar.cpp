@@ -5,6 +5,7 @@
 #define RADAR_RX 7
 #define RADAR_TX 15
 
+bool radar_ok = false;
 MyLD2410 radar(Serial2);
 
 static bool humanPresent = false;
@@ -14,9 +15,11 @@ void radar_init() {
     Serial2.begin(256000, SERIAL_8N1, RADAR_RX, RADAR_TX);
     if (!radar.begin()) {
         Serial.println("❌ LD2410 雷达初始化失败");
+        radar_ok = false;
         status.is_human_exist = false;
         return;
     }
+    radar_ok = true;
     Serial.println("✅ LD2410 雷达初始化成功");
 }
 

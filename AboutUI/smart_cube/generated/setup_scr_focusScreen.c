@@ -1,0 +1,98 @@
+/* GUI-Guider setup for focusScreen */
+#include "lvgl.h"
+#include "gui_guider.h"
+
+void setup_scr_focusScreen(lv_ui *ui)
+{
+    ui->focusScreen = lv_obj_create(NULL);
+    lv_obj_set_size(ui->focusScreen, 320, 240);
+    lv_obj_set_style_bg_color(ui->focusScreen, lv_color_hex(0x1a1a2e), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
+
+    ui->focusScreen_btn_exit = lv_btn_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_btn_exit, 8, 8);
+    lv_obj_set_size(ui->focusScreen_btn_exit, 65, 26);
+    ui->focusScreen_btn_exit_label = lv_label_create(ui->focusScreen_btn_exit);
+    lv_label_set_text(ui->focusScreen_btn_exit_label, "返回");
+    lv_label_set_long_mode(ui->focusScreen_btn_exit_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(ui->focusScreen_btn_exit_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_center(ui->focusScreen_btn_exit_label);
+    lv_obj_set_style_bg_color(ui->focusScreen_btn_exit, lv_color_hex(0x3a3a55), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_btn_exit, 216, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_btn_exit, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_btn_exit, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_btn_exit, &lv_font_yezi_hei_10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_btn_exit, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->focusScreen_btn_exit, 8, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_btn_exit, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_label_title = lv_label_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_label_title, 230, 8);
+    lv_obj_set_size(ui->focusScreen_label_title, 80, 26);
+    lv_label_set_text(ui->focusScreen_label_title, "专注模式");
+    lv_label_set_long_mode(ui->focusScreen_label_title, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_bg_color(ui->focusScreen_label_title, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_label_title, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_label_title, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_label_title, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_label_title, &lv_font_yezi_hei_10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_label_title, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_label_title, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_label_timer = lv_label_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_label_timer, 70, 55);
+    lv_obj_set_size(ui->focusScreen_label_timer, 180, 40);
+    lv_label_set_text(ui->focusScreen_label_timer, "00:00");
+    lv_label_set_long_mode(ui->focusScreen_label_timer, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_bg_color(ui->focusScreen_label_timer, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_label_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_label_timer, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_label_timer, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_label_timer, &lv_font_montserratMedium_12, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_label_timer, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_label_timer, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_label_light_info = lv_label_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_label_light_info, 20, 105);
+    lv_obj_set_size(ui->focusScreen_label_light_info, 200, 18);
+    lv_label_set_text(ui->focusScreen_label_light_info, "台灯色温: 3000K 暖光");
+    lv_label_set_long_mode(ui->focusScreen_label_light_info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_bg_color(ui->focusScreen_label_light_info, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_label_light_info, lv_color_hex(0xdddddd), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_label_light_info, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_label_light_info, &lv_font_yezi_hei_10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_label_light_info, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_label_light_info, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_img_role = lv_img_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_img_role, 20, 135);
+    lv_obj_set_size(ui->focusScreen_img_role, 40, 40);
+    LV_IMG_DECLARE(_img_role_focus_alpha_40x40);
+    lv_img_set_src(ui->focusScreen_img_role, &_img_role_focus_alpha_40x40);
+    lv_img_set_pivot(ui->focusScreen_img_role, 50, 50);
+    lv_obj_set_style_img_recolor(ui->focusScreen_img_role, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_label_status = lv_label_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_label_status, 70, 148);
+    lv_obj_set_size(ui->focusScreen_label_status, 120, 16);
+    lv_label_set_text(ui->focusScreen_label_status, "安静陪伴中...");
+    lv_label_set_long_mode(ui->focusScreen_label_status, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_bg_color(ui->focusScreen_label_status, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_label_status, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_label_status, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_label_status, &lv_font_yezi_hei_10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_label_status, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_label_status, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    ui->focusScreen_btn_presence = lv_btn_create(ui->focusScreen);
+    lv_obj_set_pos(ui->focusScreen_btn_presence, 20, 180);
+    lv_obj_set_size(ui->focusScreen_btn_presence, 80, 26);
+    ui->focusScreen_btn_presence_label = lv_label_create(ui->focusScreen_btn_presence);
+    lv_label_set_long_mode(ui->focusScreen_btn_presence_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(ui->focusScreen_btn_presence_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_center(ui->focusScreen_btn_presence_label);
+    lv_obj_set_style_bg_color(ui->focusScreen_btn_presence, lv_color_hex(0x3a3a55), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->focusScreen_btn_presence, 216, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->focusScreen_btn_presence, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->focusScreen_btn_presence, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->focusScreen_btn_presence, &lv_font_yezi_hei_10, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui->focusScreen_btn_presence, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->focusScreen_btn_presence, 8, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->focusScreen_btn_presence, lv_color_hex(0x2195f6), LV_PART_MAIN|LV_STATE_DEFAULT);
+}

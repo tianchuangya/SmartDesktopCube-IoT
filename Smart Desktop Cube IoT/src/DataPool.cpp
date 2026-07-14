@@ -14,7 +14,7 @@ SensorData sensorData = {
 
 // WiFi 默认配置
 WiFiConfig_t wifi_config = {
-  "tianchuangya",
+  "tianchuang",
   "qzl610929"
 };
 
@@ -26,7 +26,9 @@ FocusConfig_t focusConfig = {
     .human_distance       = 0,       // 检测到的人体距离（cm），无人时为0
     .is_human_exist       =false,   // 是否有人
     .auto_enter_enabled   = true,   // 默认启用自动进入
-    .auto_exit_enabled    = true    // 默认启用自动退出
+    .auto_exit_enabled    = true,   // 默认启用自动退出
+    .focus_cooldown_ms    = 30000,  // 手动退出后30秒冷却期
+    .last_manual_exit_ms  = 0       // 初始不在冷却期
 };
 
 DeviceStatus status = {
@@ -40,7 +42,14 @@ DeviceStatus status = {
   .boot_time = 0,
   .run_seconds = 0,
   .focus_mode=false,
-  .device_lock=false
+  .device_lock=false,
+  .request_focus_screen=false,
+  .on_main_screen=true,  // 启动时在mainScreen
+  .ota_in_progress=false,
+  .ota_progress=0,
+  .ota_new_version={0},
+  .ota_status_text={0},
+  .ota_check_requested=false
 };
 
 CommandData cmd = {
@@ -51,9 +60,11 @@ CommandData cmd = {
 };
 
 SecurityData security = {
-    "ESP32-CUBE-001",  // did
-    "",                // token
-    false              // token_ok
+    "CUBE001",  // did（JSON 消息中的设备标识）
+    "",         // mqtt_client_id（MAC 地址生成，mqttInit 时填充）
+    "",         // token
+    false,      // token_ok
+    0           // token_expire_time（0=未设置）
 };
 
 ImagePool_t img = {

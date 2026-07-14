@@ -241,20 +241,36 @@ void setup_scr_mainScreen(lv_ui *ui)
     lv_obj_set_style_pad_left(ui->mainScreen_label_aqi_val, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_width(ui->mainScreen_label_aqi_val, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
-    //Write codes mainScreen_img_1
-    ui->mainScreen_img_1 = lv_img_create(ui->mainScreen);
-    lv_obj_add_flag(ui->mainScreen_img_1, LV_OBJ_FLAG_CLICKABLE);
-    lv_img_set_src(ui->mainScreen_img_1, &_img_boot_logo_alpha_60x60);
-    lv_img_set_pivot(ui->mainScreen_img_1, 50,50);
-    lv_img_set_angle(ui->mainScreen_img_1, 0);
-    lv_obj_set_pos(ui->mainScreen_img_1, 254, 181);
-    lv_obj_set_size(ui->mainScreen_img_1, 60, 60);
+    //Write codes mainScreen_img_boot_logo
+    ui->mainScreen_img_boot_logo = lv_img_create(ui->mainScreen);
+    lv_obj_add_flag(ui->mainScreen_img_boot_logo, LV_OBJ_FLAG_CLICKABLE);
+    lv_img_set_src(ui->mainScreen_img_boot_logo, &_img_boot_logo_alpha_60x60);
+    lv_img_set_pivot(ui->mainScreen_img_boot_logo, 50,50);
+    lv_img_set_angle(ui->mainScreen_img_boot_logo, 0);
+    lv_obj_set_pos(ui->mainScreen_img_boot_logo, 254, 181);
+    lv_obj_set_size(ui->mainScreen_img_boot_logo, 60, 60);
 
-    //Write style for mainScreen_img_1, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
-    lv_obj_set_style_img_recolor_opa(ui->mainScreen_img_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_img_opa(ui->mainScreen_img_1, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_radius(ui->mainScreen_img_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_clip_corner(ui->mainScreen_img_1, true, LV_PART_MAIN|LV_STATE_DEFAULT);
+    //Write style for mainScreen_img_boot_logo, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    lv_obj_set_style_img_recolor_opa(ui->mainScreen_img_boot_logo, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_img_opa(ui->mainScreen_img_boot_logo, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->mainScreen_img_boot_logo, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_clip_corner(ui->mainScreen_img_boot_logo, true, LV_PART_MAIN|LV_STATE_DEFAULT);
+
+	    //Write codes mainScreen_img_wifi
+	    ui->mainScreen_img_wifi = lv_img_create(ui->mainScreen);
+	    lv_obj_add_flag(ui->mainScreen_img_wifi, LV_OBJ_FLAG_CLICKABLE);
+	    lv_img_set_src(ui->mainScreen_img_wifi, &_wifion_alpha_28x28);
+	    lv_img_set_pivot(ui->mainScreen_img_wifi, 0, 0);
+	    lv_img_set_angle(ui->mainScreen_img_wifi, 0);
+	    lv_obj_set_pos(ui->mainScreen_img_wifi, 264, 0);
+	    lv_obj_set_size(ui->mainScreen_img_wifi, 56, 56);
+	    lv_obj_set_style_pad_all(ui->mainScreen_img_wifi, 14, LV_PART_MAIN|LV_STATE_DEFAULT);
+
+	    //Write style for mainScreen_img_wifi, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+	    lv_obj_set_style_img_recolor_opa(ui->mainScreen_img_wifi, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+	    lv_obj_set_style_img_opa(ui->mainScreen_img_wifi, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
+	    lv_obj_set_style_radius(ui->mainScreen_img_wifi, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+	    lv_obj_set_style_clip_corner(ui->mainScreen_img_wifi, true, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //The custom code of mainScreen.
 
@@ -262,6 +278,5 @@ void setup_scr_mainScreen(lv_ui *ui)
     //Update current screen layout.
     lv_obj_update_layout(ui->mainScreen);
 
-    //Init events for screen.
-    events_init_mainScreen(ui);
+    // events_init_mainScreen 已在 events_init() 统一调用，此处删除避免双重注册
 }

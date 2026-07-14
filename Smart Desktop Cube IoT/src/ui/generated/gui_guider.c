@@ -91,7 +91,8 @@ void setup_ui(lv_ui *ui)
     setup_scr_mainScreen(ui);
     setup_scr_aircreen(ui);    
     setup_scr_envScreen(ui);   
-    setup_scr_fouseScreen(ui);  
+    setup_scr_fouseScreen(ui);
+    setup_scr_settingsScreen(ui);
     lv_scr_load(ui->mainScreen);
 }
 
