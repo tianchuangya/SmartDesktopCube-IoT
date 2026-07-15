@@ -41,6 +41,7 @@ typedef struct {
 typedef struct {
   bool wifi_connected;  // WiFi连接状态
   bool mqtt_connected;  // MQTT连接状态
+  bool time_synced;   // NTP时间已同步（断网后仍保持true，time()继续可用）
   bool is_human_exist;  // 人体存在检测
   int screen_brightness;// 屏幕亮度
   bool sensor_bh1750;    // 光照传感器

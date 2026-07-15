@@ -3,6 +3,7 @@
 #include "lvgl.h"
 #include "BluetoothLight.h"
 #include "../../DataPool.h"
+#include "../custom/ui_animations.h"
 
 #if LV_USE_GUIDER_SIMULATOR && LV_USE_FREEMASTER
 #include "freemaster_client.h"
@@ -19,12 +20,13 @@ static void switch_to_screen(lv_obj_t *new_scr)
     // 已经在目标屏幕，跳过
     if (new_scr == act) return;
 
-    // 防抖 400ms，避免手势连续触发多次切换导致崩溃
+    // 防抖 500ms，避免手势连续触发多次切换导致崩溃
     uint32_t now = lv_tick_get();
-    if (now - _last_switch_ms < 400) return;
+    if (now - _last_switch_ms < 500) return;
     _last_switch_ms = now;
 
-    lv_scr_load_anim(new_scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, false);
+    // 300ms 淡入过渡动画（替代原来的 LV_SCR_LOAD_ANIM_NONE）
+    lv_scr_load_anim(new_scr, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
 }
 
 // ==================== Toast 弹窗系统 ====================
@@ -379,8 +381,22 @@ void events_init_settingsScreen(lv_ui *ui)
 }
 
 
+// ==================== 屏幕加载完成回调（触发逐级显示动画）====================
+static void screen_loaded_cb(lv_event_t *e)
+{
+    lv_obj_t *scr = lv_event_get_target(e);
+    ui_anim_reveal_screen(&guider_ui, scr);
+}
+
 void events_init(lv_ui *ui)
 {
+    // 注册屏幕加载完成回调 → 触发控件逐级淡入动画
+    lv_obj_add_event_cb(ui->mainScreen,    screen_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    lv_obj_add_event_cb(ui->aircreen,      screen_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    lv_obj_add_event_cb(ui->envScreen,     screen_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    lv_obj_add_event_cb(ui->fouseScreen,   screen_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    lv_obj_add_event_cb(ui->settingsScreen, screen_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+
     // 唯一的事件注册入口（各 setup_scr_*.c 末尾的调用已删除）
     events_init_mainScreen(ui);
     events_init_aircreen(ui);

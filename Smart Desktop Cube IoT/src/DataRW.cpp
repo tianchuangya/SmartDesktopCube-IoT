@@ -186,7 +186,7 @@ void ALLData_ToSerial(void)
 
     // 空气质量
     if (status.sensor_ens160)
-        Serial.printf("TVOC: %.0f | eCO2: %.0f | AQI: %d\n", sensorData.tvoc, sensorData.eco2, sensorData.aqi);
+        Serial.printf("TVOC: %.0f | eCO2: %.0f | AQI: %d | PM2.5: %.1f\n", sensorData.tvoc, sensorData.eco2, sensorData.aqi, sensorData.pm25);
     else
         Serial.print("空气质量: 离线");
 

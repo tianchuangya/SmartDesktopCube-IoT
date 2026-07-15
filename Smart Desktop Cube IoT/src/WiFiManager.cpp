@@ -25,6 +25,7 @@ static void syncTimeOnce() {
     for (int retry = 0; retry < 20; retry++) {
         if (getLocalTime(&timeinfo, 500)) {
             time_synced = true;
+            status.time_synced = true;  // 同步到全局状态，断网后仍保持true
             Serial.printf("[NTP] ✅ 时间同步成功: %04d-%02d-%02d %02d:%02d:%02d\n",
                           timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
                           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);

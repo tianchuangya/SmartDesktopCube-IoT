@@ -128,3 +128,35 @@ BH175模块初始化失败【已解决】
   - MqttReconnectTask独立任务（50ms消息收发）
   - NTP非阻塞轮询（30s重试）
   - 断网离线模式：本地功能不受网络影响
+
+7-16
+✅ Blinker App 集成 + NTP 断网时间修复 + LVGL 过渡动画
+
+  Blinker App 物联网云平台集成（直连协议，不用 Blinker 库）：
+  - 新建：BlinkerApp.h / BlinkerApp.cpp — 独立模块，直连实现 Blinker MQTT 协议
+  - 不用 Blinker 库原因：blinker-library 自带旧版 ArduinoJson 与项目 v7.x 冲突无法编译
+  - 协议实现：HTTPS 认证 iot.diandeng.tech 获取动态凭证 → 独立 PubSubClient 连 Blinker broker
+  - 控件：bnt-light(按钮), ran-liangdu(亮度), ran-sewen(色温), num-wendu/shidu/eco2/pm25/lx/ppb(6个数值)
+  - 合并发送：9 个控件打包到 1 条 MQTT publish，减少 TCP 开销
+  - 安全设计：断网自动跳过，独立 WiFiClient 不干扰主 MQTT，setSocketTimeout(2) 防看门狗
+  - 接收回调：App 端按钮/滑块指令直接调用 BL_TurnOn/Off/SetBrightness/SetColorTemp
+  - 数据推送：2 秒一次，独立于 MQTT 服务器上报（MQTT 2 秒，Blinker 2 秒，错开执行）
+  - 坑1：auth 返回 host 带 mqtts:// 前缀 → PubSubClient DNS 失败，需剥离协议前缀
+  - 坑2：protocol=mqtts 返回 TLS broker，明文 WiFiClient 发 CONNECT 不回 CONNACK → 看门狗崩溃，改 protocol=mqtt
+  - 坑3：PubSubClient 默认 socketTimeout=15 秒，connect() 阻塞太久 → IDLE0 喂狗饿死 → setSocketTimeout(2)
+  - 坑4：BlinkerApp_Init() 被 MqttReconnectTask 每轮调用 → 串口刷屏，加 b_inited 防重复
+
+  NTP 断网时间修复：
+  - DataPool.h 新增 bool time_synced — NTP 同步标志，断网后仍保持 true
+  - WiFiManager.cpp syncTimeOnce() 成功后设置 status.time_synced = true
+  - custom.c 时间显示判断从 tm_year>=126 改为 status.time_synced — ESP32 内部 RTC 断网后继续走时
+
+  LVGL 过渡动画：
+  - 新建：ui_animations.h / ui_animations.c — 屏幕切换淡入 + 控件逐级加载
+  - 修改：events_init.c — switch_to_screen 改用 LV_SCR_LOAD_ANIM_FADE_ON + SCREEN_LOADED 回调
+  - 参数：OFFSET=20px, DURATION=300ms, STEP=70ms, ease_out 曲线
+
+  串口调试信息清理：
+  - BlinkerApp.cpp 移除所有 Serial 打印（认证/连接/接收/发送日志全部关闭）
+  - MqttReconnectTask.cpp 移除所有 Serial 打印（重连/握手/心跳/上报日志全部关闭）
+  - 目的：减少 Core 0 串口 I/O 阻塞，提升硬件 UI 流畅度

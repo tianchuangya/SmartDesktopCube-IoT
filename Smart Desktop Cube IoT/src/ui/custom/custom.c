@@ -90,7 +90,7 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
     if (status.request_focus_screen) {
         status.request_focus_screen = false;
         if (active != gui_ui->fouseScreen && gui_ui->fouseScreen) {
-            lv_scr_load_anim(gui_ui->fouseScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, false);
+            lv_scr_load_anim(gui_ui->fouseScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
             active = lv_scr_act();
         }
     }
@@ -103,7 +103,7 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         // 左上角时间
         time_t now = time(NULL);
         struct tm *t = localtime(&now);
-        if (t->tm_year >= 126) {  // 2026年之后，说明 NTP 已同步
+        if (status.time_synced) {  // NTP已同步，断网后ESP32内部RTC继续走时
             snprintf(buf, sizeof(buf), "%02d:%02d", t->tm_hour, t->tm_min);
         } else {
             snprintf(buf, sizeof(buf), "--:--");
