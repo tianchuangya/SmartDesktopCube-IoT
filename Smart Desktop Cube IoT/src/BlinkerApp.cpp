@@ -197,6 +197,81 @@ static void b_pubSwi(const char* key, const char* swi)
     b_mqtt.publish(b_topic_pub.c_str(), buf);
 }
 
+// ==================== 微信通知（HTTP API）====================
+// Blinker 微信推送走 HTTP POST 到 iot.diandeng.tech/api/v1/user/device/wxMsg/
+// JSON body: {"deviceName":"...","key":"...","title":"...","state":"...","msg":"...","receivers":""}
+static void b_sendWechat(const char* title, const char* state, const char* msg)
+{
+    if (!WiFiManager_IsConnected()) return;
+    if (b_devName.length() == 0) return;  // 未认证
+
+    WiFiClientSecure tls;
+    tls.setInsecure();
+    tls.setTimeout(10000);
+
+    HTTPClient http;
+    String url = "https://iot.diandeng.tech/api/v1/user/device/wxMsg/";
+
+    if (!http.begin(tls, url)) return;
+
+    http.addHeader("Content-Type", "application/json;charset=utf-8");
+
+    // 构造 JSON body
+    String body = "{\"deviceName\":\"";
+    body += b_devName;
+    body += "\",\"key\":\"";
+    body += BLINKER_AUTH;
+    body += "\",\"title\":\"";
+    body += title;
+    body += "\",\"state\":\"";
+    body += state;
+    body += "\",\"msg\":\"";
+    body += msg;
+    body += "\",\"receivers\":\"\"}";
+
+    http.POST(body);
+    http.end();
+}
+
+// ==================== 报警阈值 ====================
+#define ALARM_AQI_HIGH      300     // AQI≥300 严重污染
+#define ALARM_TEMP_HIGH     45.0f   // 温度≥45°C 疑似火灾
+#define ALARM_TEMP_LOW       5.0f   // 温度≤5°C 过冷
+#define ALARM_HUMI_HIGH     85.0f   // 湿度≥85% 过湿
+#define ALARM_HUMI_LOW      20.0f   // 湿度≤20% 过干
+#define ALARM_PM25_HIGH    150.0f   // PM2.5≥150 重度污染
+#define ALARM_ECO2_HIGH   2000.0f   // eCO2≥2000ppm 重度污染
+#define ALARM_TVOC_HIGH   2200.0f   // TVOC≥2200ppb 重度污染
+
+#define ALARM_COOLDOWN_MS  120000   // 报警冷却 2 分钟（Blinker 服务端限制 60s）
+#define ALARM_COUNT 8
+
+typedef enum {
+    ALARM_AQI = 0,
+    ALARM_TEMP_HI,
+    ALARM_TEMP_LO,
+    ALARM_HUMI_HI,
+    ALARM_HUMI_LO,
+    ALARM_PM25,
+    ALARM_ECO2,
+    ALARM_TVOC
+} AlarmType_t;
+
+static uint32_t alarm_last_sent[ALARM_COUNT] = {0};
+
+static bool alarm_can_send(AlarmType_t t) {
+    uint32_t now = millis();
+    if (alarm_last_sent[t] == 0) return true;
+    return (now - alarm_last_sent[t] >= ALARM_COOLDOWN_MS);
+}
+
+static void alarm_send(AlarmType_t t, const char* title, const char* state, const char* msg)
+{
+    if (!alarm_can_send(t)) return;
+    alarm_last_sent[t] = millis();
+    b_sendWechat(title, state, msg);
+}
+
 // ==================== 公共 API ====================
 
 void BlinkerApp_Init()
@@ -274,4 +349,73 @@ void BlinkerApp_SendAll()
     char buf[512];
     serializeJson(doc, buf, sizeof(buf));
     b_mqtt.publish(b_topic_pub.c_str(), buf);
+}
+
+// ==================== 微信报警通知 ====================
+
+void BlinkerApp_SendWechat(const char* title, const char* state, const char* message)
+{
+    b_sendWechat(title, state, message);
+}
+
+void BlinkerApp_CheckAlarms()
+{
+    if (!WiFiManager_IsConnected()) return;
+    if (b_devName.length() == 0) return;  // 未认证不检查
+
+    // AQI 严重污染
+    if (sensorData.aqi >= ALARM_AQI_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "AQI值过高(%d)，请注意室内通风", sensorData.aqi);
+        alarm_send(ALARM_AQI, "空气报警", "严重", msg);
+    }
+
+    // 温度过高（疑似火灾）
+    if (sensorData.temp >= ALARM_TEMP_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "室内温度过高，目前%.1f°C，疑似火灾！", sensorData.temp);
+        alarm_send(ALARM_TEMP_HI, "温度报警", "紧急", msg);
+    }
+
+    // 温度过低
+    if (sensorData.temp >= 0 && sensorData.temp <= ALARM_TEMP_LOW) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "室内温度过低，目前%.1f°C", sensorData.temp);
+        alarm_send(ALARM_TEMP_LO, "温度报警", "提醒", msg);
+    }
+
+    // 湿度过高
+    if (sensorData.humi >= ALARM_HUMI_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "室内湿度过高，当前%.1f%%，注意防潮", sensorData.humi);
+        alarm_send(ALARM_HUMI_HI, "湿度报警", "提醒", msg);
+    }
+
+    // 湿度过低
+    if (sensorData.humi >= 0 && sensorData.humi <= ALARM_HUMI_LOW) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "室内湿度过低，当前%.1f%%，注意保湿", sensorData.humi);
+        alarm_send(ALARM_HUMI_LO, "湿度报警", "提醒", msg);
+    }
+
+    // PM2.5 超标
+    if (sensorData.pm25 >= ALARM_PM25_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "PM2.5浓度超标，当前%.1f μg/m³，请通风或佩戴口罩", sensorData.pm25);
+        alarm_send(ALARM_PM25, "空气报警", "严重", msg);
+    }
+
+    // eCO2 超标
+    if (sensorData.eco2 >= ALARM_ECO2_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "CO2浓度过高，当前%.0f ppm，请开窗通风", sensorData.eco2);
+        alarm_send(ALARM_ECO2, "空气报警", "严重", msg);
+    }
+
+    // TVOC 超标
+    if (sensorData.tvoc >= ALARM_TVOC_HIGH) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "TVOC浓度过高，当前%.0f ppb，注意室内空气", sensorData.tvoc);
+        alarm_send(ALARM_TVOC, "空气报警", "严重", msg);
+    }
 }

@@ -17,6 +17,7 @@ void Task_MqttReconnect(void *pvParameters) {
     uint32_t last_heartbeat = 0;
     uint32_t last_report = 0;
     uint32_t last_blinker = 0;
+    uint32_t last_alarm = 0;
     uint32_t last_handshake = 0;
     bool     handshake_sent = false;
 
@@ -102,6 +103,12 @@ void Task_MqttReconnect(void *pvParameters) {
         if (now - last_blinker >= 2000) {
             last_blinker = now;
             BlinkerApp_SendAll();
+        }
+
+        // 10秒检查报警阈值，超限时自动发微信通知
+        if (now - last_alarm >= 10000) {
+            last_alarm = now;
+            BlinkerApp_CheckAlarms();
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

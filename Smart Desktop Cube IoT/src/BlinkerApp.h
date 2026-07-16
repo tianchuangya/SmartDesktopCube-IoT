@@ -34,8 +34,17 @@ void BlinkerApp_SendColorTemp();   // ran-sewen: 色温值
 void BlinkerApp_SendTemp();        // num-wendu: 温度
 void BlinkerApp_SendHumi();        // num-shidu: 湿度
 void BlinkerApp_SendECO2();        // num-eco2: eCO2
-void BlinkerApp_SendPM25();        // num-pm2.5: PM2.5
+void BlinkerApp_SendPM25();        // num-pm25: PM2.5
 void BlinkerApp_SendLightLux();    // num-lx: 光照
 void BlinkerApp_SendTVOC();        // num-ppb: TVOC
+
+// === 微信通知 ===
+// 发送微信推送通知（通过 Blinker HTTP API，非 MQTT）
+// title: 标题, state: 状态, message: 消息内容
+void BlinkerApp_SendWechat(const char* title, const char* state, const char* message);
+
+// 检查所有传感器数据，超阈值时自动发送微信报警
+// 各报警独立冷却 2 分钟，防止重复推送
+void BlinkerApp_CheckAlarms();
 
 #endif /* __BLINKER_APP_H_ */
