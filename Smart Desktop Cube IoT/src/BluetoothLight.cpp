@@ -71,6 +71,7 @@ static bool yl_discover()
     udp.beginPacket(multicast, 1982);
     udp.write((const uint8_t*)searchMsg.c_str(), searchMsg.length());
     udp.endPacket();
+    Serial.println("[Yeelight] SSDP 搜索中...");
 
     // 等待响应（最多 2 秒）
     unsigned long start = millis();
@@ -106,12 +107,14 @@ static bool yl_discover()
                     ylIP.fromString(ipStr);
                     ylPort = port;
                     ylIPFound = true;
+                    Serial.printf("[Yeelight] SSDP 发现: %s:%d\n", ipStr.c_str(), port);
                     return true;
                 }
             }
         }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
+    Serial.println("[Yeelight] SSDP 未发现设备");
     return false;
 }
 
@@ -162,12 +165,14 @@ static bool yl_tryConnect()
 {
     if (!ylIPFound) return false;
 
+    Serial.printf("[Yeelight] TCP 连接 %s:%d ...\n", ylIP.toString().c_str(), ylPort);
     ylClient.stop();
     if (!ylClient.connect(ylIP, ylPort, 2000)) {
         tcp_fail_count++;
         blLight.last_connect_failed = (tcp_fail_count == 1);
         blLight.last_fail_time = millis();
         blLight.connection_attempts++;
+        Serial.printf("[Yeelight] TCP 连接失败 (第%d次)\n", tcp_fail_count);
         return false;
     }
 
@@ -175,6 +180,7 @@ static bool yl_tryConnect()
     blLight.connection_attempts = 0;
     blLight.last_connect_failed = false;
     tcp_fail_count = 0;
+    Serial.println("[Yeelight] TCP 连接成功 ✓");
 
     // 连接后立即同步当前状态
     if (blLight.pending_update) {
@@ -221,6 +227,7 @@ static void yl_Task(void* pvParameters)
         // 场景1：开机无 WiFi 后续连上
         // 场景2：中途断开后续连上
         if (status.wifi_connected && !lastWifiConnected) {
+            Serial.println("[Yeelight] WiFi 重新连接，重置搜索状态");
             yl_disconnect();
             yl_resetSearch();
             discoveryInterval = 5000;
@@ -243,6 +250,7 @@ static void yl_Task(void* pvParameters)
             }
             // TCP 断了（灯被关掉/拔电源等）
             if (!ylClient.connected()) {
+                Serial.println("[Yeelight] TCP 断开，尝试重连...");
                 yl_disconnect();
                 // 不清 ylIPFound：灯可能只是被关了一下，IP 没变，优先 TCP 快速重连
             }
@@ -285,6 +293,7 @@ static void yl_Task(void* pvParameters)
             yl_tryConnect();
             // TCP 连续失败 6 次（30s）→ IP 可能过期，回到搜索
             if (tcp_fail_count >= MAX_TCP_FAILS_REDISCOVER) {
+                Serial.println("[Yeelight] TCP 连续失败6次，重新 SSDP 搜索");
                 yl_resetSearch();
                 discoveryInterval = 5000;
                 lastDiscover = now;
