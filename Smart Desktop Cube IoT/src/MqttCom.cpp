@@ -150,6 +150,7 @@ void mqttInit() {
     mqtt.setServer(MQTT_SERVER, MQTT_PORT);
     mqtt.setBufferSize(512); // 默认256不够，控制指令/OTA消息可能超
     mqtt.setCallback(mqttCallback);
+    mqtt.setSocketTimeout(2); // 默认15s阻塞致看门狗复位，限2秒
 
     snprintf(topic_status, sizeof(topic_status), "cube2026/device/%s/status", security.did);
     snprintf(topic_data, sizeof(topic_data), "cube2026/device/%s/data", security.did);
