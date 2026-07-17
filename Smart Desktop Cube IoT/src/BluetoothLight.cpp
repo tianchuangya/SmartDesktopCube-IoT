@@ -37,6 +37,13 @@ static IPAddress ylIP;
 static uint16_t  ylPort = YEELIGHT_PORT;
 static bool      ylIPFound = false;
 
+// 跟踪 WiFi 状态变化（断→连时重新搜索 IP）
+static bool      lastWifiConnected = false;
+
+// 连续连接失败计数（超过阈值则重新 SSDP 搜索）
+static int       connect_fail_count = 0;
+#define MAX_FAILS_REDISCOVER 3
+
 // JSON-RPC id 自增
 static int rpcId = 1;
 
@@ -154,6 +161,13 @@ static bool yl_connect()
     if (blLight.connected) return true;
     if (!status.wifi_connected) return false;
 
+    // 连续失败超过阈值 → 清除 IP，重新 SSDP 搜索
+    // （WiFi 重连后 Yeelight 可能换了 IP）
+    if (connect_fail_count >= MAX_FAILS_REDISCOVER && strlen(YEELIGHT_IP) == 0) {
+        ylIPFound = false;
+        connect_fail_count = 0;
+    }
+
     // 获取 IP
     if (!ylIPFound) {
         if (strlen(YEELIGHT_IP) > 0) {
@@ -178,12 +192,14 @@ static bool yl_connect()
         blLight.last_connect_failed = true;
         blLight.last_fail_time = millis();
         blLight.connection_attempts++;
+        connect_fail_count++;
         return false;
     }
 
     blLight.connected = true;
     blLight.connection_attempts = 0;
     blLight.last_connect_failed = false;
+    connect_fail_count = 0;
 
     // 连接后立即同步当前状态
     if (blLight.pending_update) {
@@ -197,7 +213,7 @@ static void yl_disconnect()
 {
     ylClient.stop();
     blLight.connected = false;
-    blLight.pending_update = false;
+    // 注意：不清 pending_update，重连后补发用户指令
 }
 
 // ==================== 灯具管理任务 ====================
@@ -208,6 +224,17 @@ static void yl_Task(void* pvParameters)
 
     while (1) {
         uint32_t now = millis();
+
+        // 检测 WiFi 断→连变化：清除旧 IP，重新搜索
+        // （Yeelight 可能被 DHCP 分配了新 IP）
+        if (status.wifi_connected && !lastWifiConnected) {
+            if (strlen(YEELIGHT_IP) == 0) {
+                ylIPFound = false;  // 强制重新 SSDP 搜索
+            }
+            connect_fail_count = 0;
+            blLight.last_connect_failed = false;
+        }
+        lastWifiConnected = status.wifi_connected;
 
         if (!blLight.connected) {
             if (now - lastConnectAttempt > reconnectInterval) {
