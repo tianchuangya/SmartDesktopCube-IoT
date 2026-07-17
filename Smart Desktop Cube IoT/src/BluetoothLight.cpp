@@ -10,7 +10,10 @@
 //   set_bright - 亮度 [1-100, "smooth", 毫秒]
 //   set_ct_abx - 色温 [2700-6500K, "smooth", 毫秒]
 //
-// 替换原 BLE + ESP32-C3 方案：不需要额外控制器，ESP32 → WiFi → Yeelight 直连
+// 三种断连场景处理：
+//   1. 开机无 WiFi → 后续 WiFi 连上：WiFi 状态变化检测，触发搜索
+//   2. WiFi 中途断开 → 重连：清除旧 IP，重新 SSDP 搜索（IP 可能变）
+//   3. WiFi 正常但灯带关着 → 后续开启：TCP 重连 + 搜索退避，灯开即连
 
 // ==================== 静态/全局变量 ====================
 
@@ -37,12 +40,12 @@ static IPAddress ylIP;
 static uint16_t  ylPort = YEELIGHT_PORT;
 static bool      ylIPFound = false;
 
-// 跟踪 WiFi 状态变化（断→连时重新搜索 IP）
+// 跟踪 WiFi 状态变化
 static bool      lastWifiConnected = false;
 
-// 连续连接失败计数（超过阈值则重新 SSDP 搜索）
-static int       connect_fail_count = 0;
-#define MAX_FAILS_REDISCOVER 3
+// TCP 连续失败计数（超过阈值则清除 IP 重新搜索）
+static int       tcp_fail_count = 0;
+#define MAX_TCP_FAILS_REDISCOVER 6
 
 // JSON-RPC id 自增
 static int rpcId = 1;
@@ -69,9 +72,9 @@ static bool yl_discover()
     udp.write((const uint8_t*)searchMsg.c_str(), searchMsg.length());
     udp.endPacket();
 
-    // 等待响应（最多 3 秒）
+    // 等待响应（最多 2 秒）
     unsigned long start = millis();
-    while (millis() - start < 3000) {
+    while (millis() - start < 2000) {
         int packetSize = udp.parsePacket();
         if (packetSize) {
             char buf[512];
@@ -82,20 +85,22 @@ static bool yl_discover()
             char* loc = strstr(buf, "Location: yeelink://");
             if (!loc) loc = strstr(buf, "Location:yeelink://");
             if (loc) {
-                loc += strlen("Location: yeelink://");
-                if (loc == buf || strncmp(loc - 1, "yeelink://", 10) != 0) {
-                    // adjust if no space
-                }
-                // 找到 IP:PORT
+                // 跳过 "Location:" 或 "Location: " + "yeelink://"
+                char* yl = strstr(loc, "yeelink://");
+                if (yl) yl += strlen("yeelink://");
+                else loc += strlen("Location: yeelink://");
+                char* p = yl ? yl : loc;
+
+                // 提取 IP
                 String ipStr = "";
-                while (*loc && *loc != ':' && *loc != '\r' && *loc != '\n' && *loc != '/') {
-                    ipStr += *loc;
-                    loc++;
+                while (*p && *p != ':' && *p != '\r' && *p != '\n' && *p != '/') {
+                    ipStr += *p;
+                    p++;
                 }
                 int port = YEELIGHT_PORT;
-                if (*loc == ':') {
-                    loc++;
-                    port = atoi(loc);
+                if (*p == ':') {
+                    p++;
+                    port = atoi(p);
                 }
                 if (ipStr.length() > 0) {
                     ylIP.fromString(ipStr);
@@ -129,14 +134,11 @@ static bool yl_sendCommand(uint8_t brightness, uint8_t color_temp)
 {
     if (!ylClient.connected()) return false;
 
-    // 色温: 0-100 → 2700K-6500K
     int ct_kelvin = BL_ColorTempToKelvin(color_temp);
 
     if (brightness == 0) {
-        // 关灯
         yl_sendRpc("set_power", "[\"off\",\"smooth\",300]");
     } else {
-        // 开灯 + 设亮度 + 设色温
         yl_sendRpc("set_power", "[\"on\",\"smooth\",300]");
         String bParam = "[";
         bParam += brightness;
@@ -155,51 +157,24 @@ static bool yl_sendCommand(uint8_t brightness, uint8_t color_temp)
     return true;
 }
 
-// ==================== 连接 Yeelight ====================
-static bool yl_connect()
+// ==================== 尝试 TCP 连接（假设 IP 已知）====================
+static bool yl_tryConnect()
 {
-    if (blLight.connected) return true;
-    if (!status.wifi_connected) return false;
+    if (!ylIPFound) return false;
 
-    // 连续失败超过阈值 → 清除 IP，重新 SSDP 搜索
-    // （WiFi 重连后 Yeelight 可能换了 IP）
-    if (connect_fail_count >= MAX_FAILS_REDISCOVER && strlen(YEELIGHT_IP) == 0) {
-        ylIPFound = false;
-        connect_fail_count = 0;
-    }
-
-    // 获取 IP
-    if (!ylIPFound) {
-        if (strlen(YEELIGHT_IP) > 0) {
-            ylIP.fromString(YEELIGHT_IP);
-            ylPort = YEELIGHT_PORT;
-            ylIPFound = true;
-        } else {
-            yl_discover();
-        }
-    }
-
-    if (!ylIPFound) {
-        blLight.last_connect_failed = true;
-        blLight.last_fail_time = millis();
-        blLight.connection_attempts++;
-        return false;
-    }
-
-    // TCP 连接
     ylClient.stop();
-    if (!ylClient.connect(ylIP, ylPort, 3000)) {
-        blLight.last_connect_failed = true;
+    if (!ylClient.connect(ylIP, ylPort, 2000)) {
+        tcp_fail_count++;
+        blLight.last_connect_failed = (tcp_fail_count == 1);
         blLight.last_fail_time = millis();
         blLight.connection_attempts++;
-        connect_fail_count++;
         return false;
     }
 
     blLight.connected = true;
     blLight.connection_attempts = 0;
     blLight.last_connect_failed = false;
-    connect_fail_count = 0;
+    tcp_fail_count = 0;
 
     // 连接后立即同步当前状态
     if (blLight.pending_update) {
@@ -213,45 +188,106 @@ static void yl_disconnect()
 {
     ylClient.stop();
     blLight.connected = false;
-    // 注意：不清 pending_update，重连后补发用户指令
+    // 不清 pending_update，重连后补发用户指令
+}
+
+// ==================== 重置搜索状态 ====================
+static void yl_resetSearch()
+{
+    ylIPFound = false;
+    tcp_fail_count = 0;
+    blLight.last_connect_failed = false;
+    blLight.connection_attempts = 0;
 }
 
 // ==================== 灯具管理任务 ====================
+// 两层逻辑：
+//   层1 — 搜索 IP（SSDP 或硬编码）：指数退避 5s→10s→20s→30s
+//   层2 — TCP 连接（IP 已知）：固定 5s 间隔
+//   TCP 连续失败 6 次（30s）→ 清 IP 回到层1
+//   WiFi 断→连 → 全部重置，立即进入层1
 static void yl_Task(void* pvParameters)
 {
-    uint32_t lastConnectAttempt = 0;
-    const uint32_t reconnectInterval = 5000;
+    uint32_t lastDiscover = 0;
+    uint32_t lastConnect = 0;
+    uint32_t discoveryInterval = 5000;     // 搜索退避，失败后翻倍
+    const uint32_t maxDiscoveryInterval = 30000;
+    const uint32_t connectInterval = 5000; // TCP 重连固定 5s
 
     while (1) {
         uint32_t now = millis();
 
-        // 检测 WiFi 断→连变化：清除旧 IP，重新搜索
-        // （Yeelight 可能被 DHCP 分配了新 IP）
+        // ---- 检测 WiFi 断→连变化 ----
+        // 场景1：开机无 WiFi 后续连上
+        // 场景2：中途断开后续连上
         if (status.wifi_connected && !lastWifiConnected) {
-            if (strlen(YEELIGHT_IP) == 0) {
-                ylIPFound = false;  // 强制重新 SSDP 搜索
-            }
-            connect_fail_count = 0;
-            blLight.last_connect_failed = false;
+            yl_disconnect();
+            yl_resetSearch();
+            discoveryInterval = 5000;
+            lastDiscover = now;  // 重置计时，等下个周期再搜
         }
         lastWifiConnected = status.wifi_connected;
 
-        if (!blLight.connected) {
-            if (now - lastConnectAttempt > reconnectInterval) {
-                lastConnectAttempt = now;
-                yl_connect();
-            }
-        } else {
-            // 已连接：发送待更新指令
+        // ---- WiFi 未连接：等待，不浪费 CPU ----
+        if (!status.wifi_connected) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
+        // ---- 已连接：维护连接 + 发送指令 ----
+        if (blLight.connected) {
             if (blLight.pending_update) {
                 if (!yl_sendCommand(blLight.target_brightness, blLight.target_color_temp)) {
                     yl_disconnect();
                 }
             }
-
-            // 检查 TCP 连接是否仍然有效
+            // TCP 断了（灯被关掉/拔电源等）
             if (!ylClient.connected()) {
                 yl_disconnect();
+                // 不清 ylIPFound：灯可能只是被关了一下，IP 没变，优先 TCP 快速重连
+            }
+            vTaskDelay(pdMS_TO_TICKS(200));
+            continue;
+        }
+
+        // ---- 未连接：层1 搜索 IP ----
+        if (!ylIPFound) {
+            if (now - lastDiscover >= discoveryInterval) {
+                lastDiscover = now;
+                bool found = false;
+                if (strlen(YEELIGHT_IP) > 0) {
+                    ylIP.fromString(YEELIGHT_IP);
+                    ylPort = YEELIGHT_PORT;
+                    ylIPFound = true;
+                    found = true;
+                } else {
+                    found = yl_discover();
+                }
+                if (found) {
+                    discoveryInterval = 5000;  // 成功→重置退避
+                    yl_tryConnect();           // 立即尝试连接
+                } else {
+                    // 指数退避：5s→10s→20s→30s
+                    discoveryInterval = discoveryInterval * 2;
+                    if (discoveryInterval > maxDiscoveryInterval)
+                        discoveryInterval = maxDiscoveryInterval;
+                    blLight.connection_attempts++;
+                }
+            }
+            vTaskDelay(pdMS_TO_TICKS(200));
+            continue;
+        }
+
+        // ---- 未连接：层2 TCP 连接（IP 已知）----
+        // 场景3：WiFi 正常但灯带关着，后续开启
+        if (now - lastConnect >= connectInterval) {
+            lastConnect = now;
+            yl_tryConnect();
+            // TCP 连续失败 6 次（30s）→ IP 可能过期，回到搜索
+            if (tcp_fail_count >= MAX_TCP_FAILS_REDISCOVER) {
+                yl_resetSearch();
+                discoveryInterval = 5000;
+                lastDiscover = now;
             }
         }
 
@@ -263,7 +299,6 @@ static void yl_Task(void* pvParameters)
 
 void BL_Init()
 {
-    // 创建灯具管理任务（运行在核心1，优先级2）
     xTaskCreatePinnedToCore(
         yl_Task,
         "YeeLight",
@@ -297,24 +332,12 @@ void BL_SetLight(uint8_t brightness, uint8_t color_temp) {
     if (brightness > 0) lastBrightness = brightness;
 }
 
-// ==================== 一键预设模板 ====================
-
-void BL_PresetWarm() {
-    BL_SetLight(100, 8);
-}
-
-void BL_PresetCool() {
-    BL_SetLight(80, 100);
-}
-
-void BL_PresetWhite() {
-    BL_SetLight(80, 47);
-}
+void BL_PresetWarm()  { BL_SetLight(100, 8); }
+void BL_PresetCool()  { BL_SetLight(80, 100); }
+void BL_PresetWhite() { BL_SetLight(80, 47); }
 
 void BL_TurnOff() {
-    if (blLight.brightness > 0) {
-        lastBrightness = blLight.brightness;
-    }
+    if (blLight.brightness > 0) lastBrightness = blLight.brightness;
     BL_SetBrightness(0);
 }
 
@@ -322,9 +345,7 @@ void BL_TurnOn() {
     BL_SetBrightness(lastBrightness > 0 ? lastBrightness : 80);
 }
 
-bool BL_IsConnected() {
-    return blLight.connected;
-}
+bool BL_IsConnected() { return blLight.connected; }
 
 bool BL_ConsumeConnectFailedFlag() {
     bool failed = blLight.last_connect_failed;
