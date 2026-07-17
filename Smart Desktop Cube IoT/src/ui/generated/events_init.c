@@ -81,11 +81,11 @@ static void show_toast(const char *msg, lv_color_t bg_color)
 
 static void show_ble_disconnected_toast(void)
 {
-    show_toast("BLE not connected\nCheck light power & range",
+    show_toast("Light not connected\nCheck Yeelight power & WiFi",
                lv_color_hex(0xE53935));  // 红色背景
 }
 
-// ==================== BLE 状态刷新定时器 ====================
+// ==================== 灯具状态刷新定时器 ====================
 static lv_timer_t *ble_status_timer = NULL;
 
 static void ble_status_update_cb(lv_timer_t *timer)
@@ -97,11 +97,11 @@ static void ble_status_update_cb(lv_timer_t *timer)
     if (ui->settingsScreen_label_ble_status) {
         const char *msg = BL_GetStatusMsg();
         if (BL_IsConnected()) {
-            lv_label_set_text(ui->settingsScreen_label_ble_status, "BLE: connected");
+            lv_label_set_text(ui->settingsScreen_label_ble_status, "Light: connected");
             lv_obj_set_style_text_color(ui->settingsScreen_label_ble_status,
                                         lv_color_hex(0x4CAF50), LV_PART_MAIN | LV_STATE_DEFAULT);  // 绿色
         } else {
-            lv_label_set_text(ui->settingsScreen_label_ble_status, "BLE: disconnected");
+            lv_label_set_text(ui->settingsScreen_label_ble_status, "Light: disconnected");
             lv_obj_set_style_text_color(ui->settingsScreen_label_ble_status,
                                         lv_color_hex(0xE53935), LV_PART_MAIN | LV_STATE_DEFAULT);  // 红色
         }
@@ -116,7 +116,7 @@ static void ble_status_update_cb(lv_timer_t *timer)
     }
 }
 
-// ==================== 辅助：检查BLE并弹窗 ====================
+// ==================== 辅助：检查灯具连接并弹窗 ====================
 // 返回 true 表示已连接，false 表示未连接（已弹窗）
 static bool check_ble_or_toast(void)
 {

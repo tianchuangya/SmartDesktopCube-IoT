@@ -7,16 +7,15 @@
 extern "C" {
 #endif
 
-// ==================== BLE 灯具参数 ====================
-// 目标设备广播名（ESP32-C3 灯光控制器使用的名称）
-#define BLE_LIGHT_DEVICE_NAME "SmartCube-Light"
+// ==================== Yeelight 灯具配置 ====================
+// Yeelight LAN Control Protocol：TCP 55443 端口，JSON-RPC over TCP
+// 使用前需在米家 App 中开启灯带的「局域网控制」功能
 
-// 服务UUID（与 ESP32-C3 端完全一致）
-#define BLE_SRV_UUID            "12345678-1234-1234-1234-123456789abc"
-// 亮度特征UUID
-#define BLE_CHAR_BRIGHTNESS     "12345678-1234-1234-1234-123456789abd"
-// 色温特征UUID
-#define BLE_CHAR_COLORTEMP      "12345678-1234-1234-1234-123456789abe"
+// Yeelight IP 地址配置：
+//   留空 ""  → 启动时自动 SSDP 搜索局域网内的 Yeelight 设备
+//   填入 IP → 直接连接该地址，跳过搜索（推荐，启动更快）
+#define YEELIGHT_IP        ""
+#define YEELIGHT_PORT      55443
 
 // ==================== 色温预设模板 ====================
 typedef enum {
@@ -27,7 +26,7 @@ typedef enum {
 
 // ==================== 灯具状态 ====================
 typedef struct {
-    bool     connected;           // BLE是否已连接
+    bool     connected;           // Yeelight TCP 是否已连接
     uint8_t  brightness;          // 当前亮度 0-100
     uint8_t  color_temperature;   // 当前色温 0-100 (映射到2700K-6500K)
     uint8_t  target_brightness;   // 目标亮度
@@ -42,7 +41,7 @@ extern BluetoothLightState blLight;
 
 // ==================== API ====================
 
-// 初始化BLE并启动连接任务（在main中调用一次）
+// 初始化灯具控制（在main中调用一次）
 void BL_Init();
 
 // 设置亮度 (0-100)，非阻塞，通过任务异步发送
@@ -60,7 +59,7 @@ void BL_PresetWarm();   // 暖光：最亮+低色温
 void BL_PresetCool();   // 冷光：高亮+高色温
 void BL_PresetWhite();  // 白光：中亮+中色温
 
-// 开关灯（通过设置亮度0实现）
+// 开关灯
 void BL_TurnOff();
 void BL_TurnOn();       // 恢复之前的亮度
 

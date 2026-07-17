@@ -182,3 +182,37 @@ BH175模块初始化失败【已解决】
 
   功能规格说明书更新：
   - 新增 3.7.6 节"微信报警通知"：推送方式、模板格式、检测周期、报警阈值表（4列9行）
+
+7-17
+✅ 灯光方案升级：BLE + ESP32-C3 → Yeelight 1S 直连
+
+  背景：原方案 ESP32 → BLE → ESP32-C3 → PWM → MOS → 灯带（6 级链路，需焊电路）
+  新方案：ESP32 → WiFi → Yeelight 1S（1 步直连，即插即用）
+
+  BluetoothLight.cpp 重写（API 不变，底层全换）：
+  - 移除 NimBLE 库依赖，新增 WiFiClient TCP 通信
+  - 协议：Yeelight LAN Control Protocol（TCP 55443 端口，JSON-RPC）
+  - 命令：set_power(开关), set_bright(亮度 1-100), set_ct_abx(色温 2700-6500K)
+  - SSDP 自动发现：M-SEARCH 多播 239.255.255.250:1982，解析 Location 头获取 IP
+  - 也支持硬编码 IP（YEELIGHT_IP 宏，留空则自动搜索）
+  - 后台任务 Core 1，200ms 周期，5 秒重连
+  - 非阻塞 API 不变：BL_SetBrightness/SetColorTemp/TurnOn/TurnOff/PresetWarm/Cool/White
+  - BlinkerApp、UI 滑块、专注模式联动无需修改
+
+  移除文件依赖：
+  - platformio.ini 移除 h2zero/NimBLE-Arduino@^2.1.2
+  - 不再需要 ESP32-C3 灯光控制器（esp32c3_light_controller 目录保留作参考）
+
+  UI 更新：
+  - events_init.c 状态文字 "BLE: connected" → "Light: connected"
+  - setup_scr_settingsScreen.c 初始文字 "BLE: checking..." → "Light: checking..."
+  - Toast 提示更新为 "Check Yeelight power & WiFi"
+
+  资源节省：
+  - RAM: 36.2% → 34.3%（省 6KB）
+  - Flash: 84.9% → 79.2%（省 178KB）
+
+  使用前提：
+  - 米家 App 绑定 Yeelight 灯带 1S
+  - 开启「局域网控制」
+  - Yeelight 与 ESP32 同一 WiFi

@@ -16,7 +16,7 @@ void setup()
     Serial.begin(115200);
     Device_InitAll();// 初始化传感器 + LVGL 屏幕
     mqttInit();
-    BL_Init();        // 初始化蓝牙灯具控制
+    BL_Init();        // 初始化 Yeelight 灯具控制
     otaInit();        // 初始化 OTA 子系统
     Serial.println("正在预热设备以校准传感器数据，需3min请耐心等待");
     //vTaskDelay(180000 / portTICK_PERIOD_MS);//3min

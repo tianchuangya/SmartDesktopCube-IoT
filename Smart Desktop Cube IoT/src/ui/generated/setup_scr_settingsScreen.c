@@ -251,9 +251,9 @@ void setup_scr_settingsScreen(lv_ui *ui)
 
     //The custom code of settingsScreen.
 
-    // BLE 连接状态标签
+    // 灯具连接状态标签
     ui->settingsScreen_label_ble_status = lv_label_create(ui->settingsScreen);
-    lv_label_set_text(ui->settingsScreen_label_ble_status, "BLE: checking...");
+    lv_label_set_text(ui->settingsScreen_label_ble_status, "Light: checking...");
     lv_label_set_long_mode(ui->settingsScreen_label_ble_status, LV_LABEL_LONG_WRAP);
     lv_obj_set_pos(ui->settingsScreen_label_ble_status, 50, 222);
     lv_obj_set_size(ui->settingsScreen_label_ble_status, 220, 18);
