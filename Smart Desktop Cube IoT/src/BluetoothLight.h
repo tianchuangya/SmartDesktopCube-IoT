@@ -14,7 +14,11 @@ extern "C" {
 // Yeelight IP 地址配置：
 //   留空 ""  → 启动时自动 SSDP 搜索局域网内的 Yeelight 设备
 //   填入 IP → 直接连接该地址，跳过搜索（推荐，启动更快）
-#define YEELIGHT_IP        ""
+//
+// 当前架构：ESP32 AP+STA 双模，灯带连 ESP32 自建 AP "CubeLight"
+// 灯带从 ESP32 DHCP 拿到的 IP 默认是 192.168.4.2（AP 第一个客户端）
+// 如果实际不是这个 IP，看串口输出的 AP 客户端列表调整
+#define YEELIGHT_IP        "192.168.4.2"
 #define YEELIGHT_PORT      55443
 
 // ==================== 色温预设模板 ====================

@@ -1,11 +1,11 @@
 #include "focus_mode.h"
 #include "DataPool.h"
 #include "radar.h"
-#include "BluetoothLight.h"
 
 static unsigned long firstPresenceTime = 0;
 static bool wasHumanLastCycle = false;
 static unsigned long lastFocusIncrementMs = 0;
+static bool manual_focus_active = false;  // 手动进入专注模式标记（禁止自动退出）
 
 void focusMode_update() {
     bool humanNow = status.is_human_exist;
@@ -38,20 +38,20 @@ void focusMode_update() {
         status.request_focus_screen = true;
         sensorData.focus_duration = 0;
         lastFocusIncrementMs = millis();
-        BL_PresetWarm();  // 进入专注 → 暖光+最亮
-        Serial.println("[Focus] ✅ 自动进入专注模式 → 灯光切换为暖光最亮");
+        manual_focus_active = false;  // 自动进入，允许自动退出
+        Serial.println("[Focus] ✅ 自动进入专注模式");
     }
 
-    // 自动退出专注模式（仅当雷达正常工作时；雷达故障时由手动按钮控制）
+    // 自动退出专注模式（仅当雷达正常工作时；手动进入时不自动退出）
     if (radar_ok &&
         focusConfig.auto_exit_enabled &&
         status.focus_mode &&
+        !manual_focus_active &&
         !humanNow) {
 
         status.focus_mode = false;
         sensorData.focus_duration = 0;
-        BL_PresetWhite();  // 退出专注 → 恢复正常白光
-        Serial.println("[Focus] 自动退出专注模式 → 灯光恢复白光");
+        Serial.println("[Focus] 自动退出专注模式");
     }
 
     // 专注中：每秒递增一次
@@ -71,7 +71,14 @@ void focusMode_update() {
 void focusMode_notifyManualExit() {
     focusConfig.last_manual_exit_ms = millis();  // 记录退出时间，启动冷却
     firstPresenceTime = 0;                        // 重置累积时间，避免冷却期内误触发
-    BL_PresetWhite();                             // 恢复白光
+    manual_focus_active = false;
     Serial.printf("[Focus] 🛑 手动退出 → 冷却 %lums 内禁止自动进入\n",
                   focusConfig.focus_cooldown_ms);
+}
+
+// 用户手动进入专注模式时调用（UI 层触发）
+void focusMode_notifyManualEnter() {
+    lastFocusIncrementMs = millis();  // 初始化计时起点
+    manual_focus_active = true;       // 禁止自动退出
+    Serial.println("[Focus] ▶ 手动进入专注模式，计时开始");
 }

@@ -9,6 +9,12 @@ extern SemaphoreHandle_t dataMutex;
 
 void Task_Realtime_Control(void *pvParameters) {
     while (1) {
+        // OTA 期间暂停雷达和专注模式
+        if (status.ota_in_progress) {
+            vTaskDelay(pdMS_TO_TICKS(200));
+            continue;
+        }
+
         // 1. 高频更新雷达状态 (感知)
         radar_update(); 
         
@@ -22,6 +28,12 @@ void Task_Realtime_Control(void *pvParameters) {
 // 低频数据任务：负责传感器数据采集、串口输出和云端上报
 void Task_DataRead_Init(void *pvParameters) {
     while (1) {
+        // OTA 期间暂停传感器采集
+        if (status.ota_in_progress) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         xSemaphoreTake(dataMutex, portMAX_DELAY);
         DataRead_ReadAll();      // 读取温湿度、光照、AQI等
         ALLData_ToSerial();      // 串口打印

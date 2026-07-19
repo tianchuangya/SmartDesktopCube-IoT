@@ -206,6 +206,70 @@ static void yl_resetSearch()
     blLight.connection_attempts = 0;
 }
 
+// ==================== 诊断：miio 探测 + TCP 端口测试 ====================
+static void yl_diagnose()
+{
+    IPAddress ip;
+    ip.fromString(YEELIGHT_IP);
+    Serial.printf("[诊断] 目标设备: %s\n", YEELIGHT_IP);
+
+    // --- 测试1: miio UDP 54321（所有小米设备都响应）---
+    WiFiUDP udp;
+    udp.begin(54321);
+
+    // miio hello 包：32 字节
+    uint8_t hello[32] = {0};
+    hello[0] = 0x21; hello[1] = 0x31;
+    hello[2] = 0x00; hello[3] = 0x20;
+
+    udp.beginPacket(ip, 54321);
+    udp.write(hello, 32);
+    udp.endPacket();
+
+    Serial.println("[诊断] 发送 miio 探测包到 UDP 54321...");
+    bool miio_ok = false;
+    unsigned long start = millis();
+    while (millis() - start < 3000) {
+        int n = udp.parsePacket();
+        if (n >= 32) {
+            uint8_t resp[64] = {0};
+            udp.read(resp, sizeof(resp));
+            Serial.printf("[诊断] ✅ miio 响应! 收到 %d 字节\n", n);
+            Serial.printf("[诊断]   设备ID: %02X%02X%02X%02X\n", resp[8], resp[9], resp[10], resp[11]);
+            Serial.printf("[诊断]   Token: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
+                resp[16],resp[17],resp[18],resp[19],resp[20],resp[21],resp[22],resp[23],
+                resp[24],resp[25],resp[26],resp[27],resp[28],resp[29],resp[30],resp[31]);
+            miio_ok = true;
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    if (!miio_ok) {
+        Serial.println("[诊断] ❌ miio 无响应（设备不可达或热点隔离）");
+    }
+
+    // --- 测试2: TCP 55443（Yeelight LAN 控制）---
+    Serial.println("[诊断] 尝试 TCP 55443...");
+    WiFiClient tc;
+    if (tc.connect(ip, 55443, 3000)) {
+        Serial.println("[诊断] ✅ TCP 55443 可连接！LAN 控制已开启");
+        tc.stop();
+    } else {
+        Serial.println("[诊断] ❌ TCP 55443 连不上（LAN 控制未开启或被防火墙挡）");
+    }
+
+    // --- 结论 ---
+    Serial.println("[诊断] ===== 结论 =====");
+    if (miio_ok) {
+        Serial.println("[诊断] 设备可达，热点无隔离");
+        Serial.println("[诊断] → 55443连不上 = LAN控制未开启，需在Yeelight App开启");
+    } else {
+        Serial.println("[诊断] 设备不可达");
+        Serial.println("[诊断] → 可能1: 手机热点客户端隔离，换路由器试");
+        Serial.println("[诊断] → 可能2: IP地址不对，检查热点设备列表");
+    }
+}
+
 // ==================== 灯具管理任务 ====================
 // 两层逻辑：
 //   层1 — 搜索 IP（SSDP 或硬编码）：指数退避 5s→10s→20s→30s
@@ -219,6 +283,7 @@ static void yl_Task(void* pvParameters)
     uint32_t discoveryInterval = 5000;     // 搜索退避，失败后翻倍
     const uint32_t maxDiscoveryInterval = 30000;
     const uint32_t connectInterval = 5000; // TCP 重连固定 5s
+    bool diagnosed = false;
 
     while (1) {
         uint32_t now = millis();
@@ -239,6 +304,12 @@ static void yl_Task(void* pvParameters)
         if (!status.wifi_connected) {
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
+        }
+
+        // ---- WiFi 刚连上：运行一次诊断 ----
+        if (!diagnosed) {
+            diagnosed = true;
+            yl_diagnose();
         }
 
         // ---- 已连接：维护连接 + 发送指令 ----

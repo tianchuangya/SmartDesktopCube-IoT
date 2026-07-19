@@ -88,12 +88,13 @@ void setup_ui(lv_ui *ui)
 {
     init_scr_del_flag(ui);
     init_keyboard(ui);
+    setup_scr_bootScreen(ui);
     setup_scr_mainScreen(ui);
     setup_scr_aircreen(ui);    
     setup_scr_envScreen(ui);   
     setup_scr_fouseScreen(ui);
     setup_scr_settingsScreen(ui);
-    lv_scr_load(ui->mainScreen);
+    lv_scr_load(ui->bootScreen);  // 先显示开机动画
 }
 
 void init_keyboard(lv_ui *ui)

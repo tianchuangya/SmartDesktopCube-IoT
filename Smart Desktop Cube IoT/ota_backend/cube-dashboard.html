@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Desktop Cube - 控制台</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        /* ===== 顶部导航 ===== */
+        .header {
+            background: linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .status-dot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #9ca3af;
+        }
+        .header .status-dot::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 6px #22c55e;
+            animation: pulse 2s infinite;
+        }
+        .header .status-dot.offline::before {
+            background: #ef4444;
+            box-shadow: 0 0 6px #ef4444;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ===== 主布局 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* ===== 告警横幅 ===== */
+        .alert-banner {
+            background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #fca5a5;
+        }
+        .alert-banner.show { display: flex; }
+        .alert-banner .icon { font-size: 20px; }
+
+        /* ===== 卡片通用样式 ===== */
+        .card {
+            background: linear-gradient(135deg, #1e1e3f 0%, #16163a 100%);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #a5b4fc;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== 传感器数据网格 ===== */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        .sensor-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .sensor-item:hover {
+            background: rgba(99, 102, 241, 0.08);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        .sensor-item .label {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+        .sensor-item .value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c7d2fe, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sensor-item .unit {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .sensor-item.warn {
+            border-color: rgba(251, 191, 36, 0.4);
+            background: rgba(251, 191, 36, 0.05);
+        }
+        .sensor-item.warn .value {
+            background: linear-gradient(135deg, #fde68a, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* ===== 控制按钮 ===== */
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .control-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 14px 18px;
+        }
+        .control-item .info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .control-item .info .name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+        .control-item .info .desc {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* 开关按钮 */
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            cursor: pointer;
+        }
+        .toggle input { display: none; }
+        .toggle .slider {
+            position: absolute;
+            inset: 0;
+            background: #374151;
+            border-radius: 13px;
+            transition: 0.3s;
+        }
+        .toggle .slider::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #9ca3af;
+            top: 3px;
+            left: 3px;
+            transition: 0.3s;
+        }
+        .toggle input:checked + .slider {
+            background: #6366f1;
+        }
+        .toggle input:checked + .slider::before {
+            transform: translateX(22px);
+            background: #fff;
+        }
+
+        /* ===== 趋势图 ===== */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+        .chart-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .chart-tab {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #9ca3af;
+            transition: all 0.2s;
+        }
+        .chart-tab.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+            color: #a5b4fc;
+        }
+
+        /* ===== 连接配置 ===== */
+        .config-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .config-bar input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: #e0e0e0;
+            font-size: 13px;
+            width: 240px;
+            outline: none;
+        }
+        .config-bar input:focus {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+        .config-bar button {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 6px 14px;
+            color: #a5b4fc;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .config-bar button:hover {
+            background: rgba(99, 102, 241, 0.3);
+        }
+
+        /* ===== 底部信息 ===== */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 600px) {
+            .sensor-grid { grid-template-columns: repeat(2, 1fr); }
+            .control-grid { grid-template-columns: 1fr; }
+            .sensor-item .value { font-size: 22px; }
+            .container { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部 -->
+<div class="header">
+    <h1>Smart Desktop Cube</h1>
+    <div class="status-dot" id="connStatus">已连接</div>
+</div>
+
+<div class="container">
+
+    <!-- 连接配置 -->
+    <div class="config-bar">
+        <span>设备地址：</span>
+        <input type="text" id="baseUrl" value="http://cube.local" placeholder="http://cube.local">
+        <button onclick="testConnection()">测试连接</button>
+    </div>
+
+    <!-- 告警横幅 -->
+    <div class="alert-banner" id="alertBanner">
+        <span class="icon">⚠️</span>
+        <span id="alertText"></span>
+    </div>
+
+    <!-- 实时传感器数据 -->
+    <div class="card">
+        <div class="card-title">📊 实时传感器数据</div>
+        <div class="sensor-grid">
+            <div class="sensor-item" id="si-temp">
+                <div class="label">温度</div>
+                <div class="value" id="v-temp">--</div>
+                <div class="unit">°C</div>
+            </div>
+            <div class="sensor-item" id="si-humi">
+                <div class="label">湿度</div>
+                <div class="value" id="v-humi">--</div>
+                <div class="unit">%RH</div>
+            </div>
+            <div class="sensor-item" id="si-light">
+                <div class="label">光照</div>
+                <div class="value" id="v-light">--</div>
+                <div class="unit">lux</div>
+            </div>
+            <div class="sensor-item" id="si-eco2">
+                <div class="label">CO₂</div>
+                <div class="value" id="v-eco2">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            <div class="sensor-item" id="si-tvoc">
+                <div class="label">TVOC</div>
+                <div class="value" id="v-tvoc">--</div>
+                <div class="unit">mg/m³</div>
+            </div>
+            <div class="sensor-item" id="si-human">
+                <div class="label">人体存在</div>
+                <div class="value" id="v-human">--</div>
+                <div class="unit" id="u-human"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备控制 -->
+    <div class="card">
+        <div class="card-title">🎮 设备控制</div>
+        <div class="control-grid">
+            <div class="control-item">
+                <div class="info">
+                    <span class="name">自动亮度</span>
+                    <span class="desc">根据环境光自动调节屏幕亮度</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="sw-auto-bright" onchange="sendControl('auto_brightness', 'toggle')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="control-item">
+                <div class="info">
+                    <span class="name">专注模式</span>
+                    <span class="desc">减少干扰，专注工作</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="sw-focus" onchange="sendControl('focus', 'toggle')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="control-item">
+                <div class="info">
+                    <span class="name">免打扰</span>
+                    <span class="desc">22:00-08:00 自动启用</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="sw-silent" onchange="sendControl('silent_mode', 'toggle')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史趋势图 -->
+    <div class="card">
+        <div class="card-title">📈 历史趋势（最近 5 小时）</div>
+        <div class="chart-tabs">
+            <div class="chart-tab active" onclick="switchChart('temp', this)">温度</div>
+            <div class="chart-tab" onclick="switchChart('humi', this)">湿度</div>
+            <div class="chart-tab" onclick="switchChart('light', this)">光照</div>
+            <div class="chart-tab" onclick="switchChart('eco2', this)">CO₂</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="historyChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Smart Desktop Cube IoT &middot; ESP32-S3 &middot; v1.0.0
+</div>
+
+<script>
+// ==================== 配置 ====================
+let BASE_URL = 'http://cube.local';
+let refreshTimer = null;
+let historyData = null;
+let chart = null;
+let currentChartKey = 'temp';
+
+// 图表配色
+const CHART_COLORS = {
+    temp:  { line: '#ef4444', fill: 'rgba(239,68,68,0.1)' },
+    humi:  { line: '#3b82f6', fill: 'rgba(59,130,246,0.1)' },
+    light: { line: '#f59e0b', fill: 'rgba(245,158,11,0.1)' },
+    eco2:  { line: '#8b5cf6', fill: 'rgba(139,92,246,0.1)' }
+};
+
+const CHART_LABELS = {
+    temp: '温度 (°C)',
+    humi: '湿度 (%RH)',
+    light: '光照 (lux)',
+    eco2: 'CO₂ (ppm)'
+};
+
+// ==================== 初始化 ====================
+window.addEventListener('load', () => {
+    // 从 URL 参数读取设备地址
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('host')) {
+        document.getElementById('baseUrl').value = params.get('host');
+        BASE_URL = params.get('host');
+    } else {
+        BASE_URL = document.getElementById('baseUrl').value;
+    }
+    
+    initChart();
+    startAutoRefresh();
+    loadHistory();
+});
+
+// ==================== 自动刷新 ====================
+function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchData, 2000);
+    fetchData();
+}
+
+// ==================== 获取实时数据 ====================
+async function fetchData() {
+    try {
+        const resp = await fetch(BASE_URL + '/api/data');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        updateUI(data);
+        setOnline(true);
+    } catch (e) {
+        setOnline(false);
+    }
+}
+
+// ==================== 更新界面 ====================
+function updateUI(data) {
+    // 传感器数值
+    document.getElementById('v-temp').textContent = data.temp.toFixed(1);
+    document.getElementById('v-humi').textContent = data.humi.toFixed(1);
+    document.getElementById('v-light').textContent = data.light.toFixed(0);
+    document.getElementById('v-eco2').textContent = data.eco2.toFixed(0);
+    document.getElementById('v-tvoc').textContent = data.tvoc.toFixed(2);
+    document.getElementById('v-human').textContent = data.human_exist ? '是' : '否';
+    document.getElementById('u-human').textContent = data.human_exist ? '持续 ' + data.human_duration + ' 秒' : '';
+
+    // 告警高亮
+    toggleWarn('si-eco2', data.eco2 > 1000);
+    toggleWarn('si-tvoc', data.tvoc > 0.5);
+    toggleWarn('si-temp', data.temp < 18 || data.temp > 28);
+
+    // 开关状态同步
+    document.getElementById('sw-auto-bright').checked = data.auto_brightness;
+    document.getElementById('sw-focus').checked = data.focus_mode;
+    document.getElementById('sw-silent').checked = data.silent_mode;
+
+    // 告警横幅
+    let alerts = [];
+    if (data.air_quality_alert) alerts.push('空气质量差，建议开窗通风');
+    if (data.temp_comfort_alert) {
+        if (data.temp < 18) alerts.push('温度偏低（' + data.temp.toFixed(1) + '°C），注意保暖');
+        else if (data.temp > 28) alerts.push('温度偏高（' + data.temp.toFixed(1) + '°C），注意降温');
+    }
+    const banner = document.getElementById('alertBanner');
+    if (alerts.length > 0) {
+        document.getElementById('alertText').textContent = alerts.join('  |  ');
+        banner.classList.add('show');
+    } else {
+        banner.classList.remove('show');
+    }
+}
+
+function toggleWarn(id, warn) {
+    const el = document.getElementById(id);
+    if (warn) el.classList.add('warn');
+    else el.classList.remove('warn');
+}
+
+function setOnline(online) {
+    const el = document.getElementById('connStatus');
+    if (online) {
+        el.textContent = '已连接';
+        el.classList.remove('offline');
+    } else {
+        el.textContent = '已断开';
+        el.classList.add('offline');
+    }
+}
+
+// ==================== 控制指令 ====================
+async function sendControl(command, value) {
+    try {
+        await fetch(BASE_URL + '/api/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: command, value: value })
+        });
+        // 等 500ms 后刷新状态
+        setTimeout(fetchData, 500);
+    } catch (e) {
+        console.error('控制指令发送失败:', e);
+    }
+}
+
+// ==================== 测试连接 ====================
+async function testConnection() {
+    BASE_URL = document.getElementById('baseUrl').value.replace(/\/$/, '');
+    try {
+        const resp = await fetch(BASE_URL + '/api/data');
+        if (resp.ok) {
+            setOnline(true);
+            alert('连接成功！');
+            startAutoRefresh();
+            loadHistory();
+        } else {
+            throw new Error('HTTP ' + resp.status);
+        }
+    } catch (e) {
+        setOnline(false);
+        alert('连接失败：' + e.message + '\n请确认设备地址正确且设备在线');
+    }
+}
+
+// ==================== 历史趋势图 ====================
+function initChart() {
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: CHART_LABELS['temp'],
+                data: [],
+                borderColor: CHART_COLORS['temp'].line,
+                backgroundColor: CHART_COLORS['temp'].fill,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 2,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30,30,63,0.95)',
+                    titleColor: '#a5b4fc',
+                    bodyColor: '#e0e0e0',
+                    borderColor: 'rgba(99,102,241,0.3)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 10
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#6b7280', font: { size: 11 } }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#6b7280', font: { size: 11 } }
+                }
+            }
+        }
+    });
+}
+
+async function loadHistory() {
+    try {
+        const resp = await fetch(BASE_URL + '/api/history');
+        if (!resp.ok) return;
+        historyData = await resp.json();
+        updateChart();
+    } catch (e) {
+        console.error('加载历史数据失败:', e);
+    }
+}
+
+function switchChart(key, tabEl) {
+    currentChartKey = key;
+    // 切换 tab 样式
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+    if (tabEl) tabEl.classList.add('active');
+    updateChart();
+}
+
+function updateChart() {
+    if (!historyData || !chart) return;
+    
+    const key = currentChartKey;
+    const values = historyData[key] || [];
+    const count = values.length;
+    
+    // 生成时间标签
+    const labels = [];
+    for (let i = 0; i < count; i++) {
+        const minutesAgo = (count - 1 - i) * 5;
+        if (minutesAgo === 0) labels.push('现在');
+        else if (minutesAgo < 60) labels.push(minutesAgo + '分钟前');
+        else labels.push((minutesAgo / 60).toFixed(1) + '小时前');
+    }
+    
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = values;
+    chart.data.datasets[0].label = CHART_LABELS[key];
+    chart.data.datasets[0].borderColor = CHART_COLORS[key].line;
+    chart.data.datasets[0].backgroundColor = CHART_COLORS[key].fill;
+    chart.update('none');  // 无动画更新，避免闪烁
+}
+
+// 每 30 秒刷新历史数据
+setInterval(loadHistory, 30000);
+</script>
+
+</body>
+</html>

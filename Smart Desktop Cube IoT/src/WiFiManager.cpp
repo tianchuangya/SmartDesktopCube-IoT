@@ -7,6 +7,7 @@ static bool wifi_started = false;     // 是否已调用 WiFi.begin()
 static uint32_t wifi_begin_time = 0;  // 上次 WiFi.begin() 的时间戳
 static uint32_t last_status_print = 0;// 上次打印状态的时间
 static uint32_t last_ntp_try = 0;     // 上次 NTP 同步尝试的时间
+static bool ap_started = false;       // ESP32 AP 是否已开启（只开一次，多次 softAP 会失败）
 
 // 初始化 NTP 时间同步（WiFi 连上后调用，失败后每 30s 重试）
 static void syncTimeOnce() {
@@ -42,6 +43,22 @@ bool WiFiManager_IsTimeSynced(void) {
 }
 
 void WiFiManager_Connect(void) {
+    // === 首次进入：开启 AP+STA 双模（只执行一次）===
+    // AP 给 Yeelight 灯带连（绕开手机热点客户端隔离），STA 连手机热点上 MQTT
+    if (!ap_started) {
+        WiFi.mode(WIFI_AP_STA);  // 双模同时工作
+        bool ap_ok = WiFi.softAP(AP_SSID, AP_PASSWORD);
+        if (ap_ok) {
+            Serial.printf("[WiFi] ✅ AP 已开启: SSID=%s, 密码=%s, IP=%s\n",
+                          AP_SSID, AP_PASSWORD,
+                          WiFi.softAPIP().toString().c_str());
+            Serial.println("[WiFi] → 在米家 App 配对灯带时选 WiFi: CubeLight");
+        } else {
+            Serial.println("[WiFi] ❌ AP 开启失败，灯带将无法连接");
+        }
+        ap_started = true;
+    }
+
     wl_status_t status_wifi = WiFi.status();
 
     // 已经连上了，只更新状态

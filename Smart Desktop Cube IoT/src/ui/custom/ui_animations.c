@@ -98,14 +98,21 @@ void ui_anim_reveal_screen(lv_ui *ui, lv_obj_t *screen)
     const uint16_t STEP     = 70;   /* 控件间延迟 ms */
 
     if (screen == ui->mainScreen) {
-        /* 主屏幕：时间 → AQI卡片 → eCO2卡片 → 角色 → 提示 → 图标 */
-        ui_anim_fade_slide_in(ui->mainScreen_label_time,     OFFSET, 0,         DURATION);
-        ui_anim_fade_slide_in(ui->mainScreen_cont_aqi_card,  OFFSET, STEP,      DURATION);
-        ui_anim_fade_slide_in(ui->mainScreen_cont_eco2_card, OFFSET, STEP * 2,  DURATION);
-        ui_anim_fade_slide_in(ui->mainScreen_img_role,       OFFSET, STEP * 3,  DURATION);
-        ui_anim_fade_slide_in(ui->mainScreen_label_Prompt,   OFFSET, STEP * 4,  DURATION);
-        ui_anim_fade_in     (ui->mainScreen_img_boot_logo,          STEP * 5,  DURATION);
-        ui_anim_fade_in     (ui->mainScreen_img_wifi,               STEP * 5,  DURATION);
+        /* 新主屏幕：状态栏 → 角色 → AQI卡片 → 温湿度 → 传感器网格 → 底部栏 */
+        ui_anim_fade_in     (ui->mainScreen_bar_top,                  0,         DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_img_role,                OFFSET, STEP,      DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cont_aqi_hero,           OFFSET, STEP * 2,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cont_temp,               OFFSET, STEP * 3,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cont_humi,               OFFSET, STEP * 3,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_light,              OFFSET, STEP * 4,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_co2,                OFFSET, STEP * 4,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_tvoc,               OFFSET, STEP * 4,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_pm25,               OFFSET, STEP * 5,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_human,              OFFSET, STEP * 5,  DURATION);
+        ui_anim_fade_slide_in(ui->mainScreen_cell_signal,             OFFSET, STEP * 5,  DURATION);
+        ui_anim_fade_in     (ui->mainScreen_bar_bottom,                      STEP * 6,  DURATION);
+        ui_anim_fade_in     (ui->mainScreen_img_boot_logo,                   STEP * 6,  DURATION);
+        ui_anim_fade_in     (ui->mainScreen_img_wifi,                        STEP * 6,  DURATION);
     }
     else if (screen == ui->aircreen) {
         /* 空气屏幕：标题 → TVOC卡片 → eCO2卡片 → 角色 → AI提示 */

@@ -36,7 +36,7 @@ void lv_port_disp_init(void)
     tft.setRotation(1);
 
     pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
+    analogWrite(TFT_BL, 255);   // 使用PWM初始化，确保后续亮度调节生效
 
     lv_init();
 

@@ -13,6 +13,9 @@ void focusMode_update();
 // 由 UI 层在用户切离 fouseScreen 时调用
 void focusMode_notifyManualExit();
 
+// 通知手动进入：初始化计时起点，并禁止自动退出（直到手动退出）
+void focusMode_notifyManualEnter();
+
 #ifdef __cplusplus
 }
 #endif

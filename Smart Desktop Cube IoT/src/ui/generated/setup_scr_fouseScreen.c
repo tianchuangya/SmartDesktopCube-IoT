@@ -23,11 +23,9 @@ void setup_scr_fouseScreen(lv_ui *ui)
     lv_obj_set_size(ui->fouseScreen, 320, 240);
     lv_obj_set_scrollbar_mode(ui->fouseScreen, LV_SCROLLBAR_MODE_OFF);
 
-    //Write style for fouseScreen, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
-    lv_obj_set_style_bg_opa(ui->fouseScreen, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_src(ui->fouseScreen, &_img_bg_focus_320x240, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_opa(ui->fouseScreen, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_recolor_opa(ui->fouseScreen, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    //Write style for fouseScreen: 纯黑背景，避免吸引注意力
+    lv_obj_set_style_bg_color(ui->fouseScreen, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->fouseScreen, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //Write codes fouseScreen_btn_1
     ui->fouseScreen_btn_1 = lv_btn_create(ui->fouseScreen);
@@ -40,14 +38,14 @@ void setup_scr_fouseScreen(lv_ui *ui)
     lv_obj_set_pos(ui->fouseScreen_btn_1, 10, 11);
     lv_obj_set_size(ui->fouseScreen_btn_1, 65, 26);
 
-    //Write style for fouseScreen_btn_1, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    //Write style for fouseScreen_btn_1: 暗色主题按钮
     lv_obj_set_style_bg_opa(ui->fouseScreen_btn_1, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui->fouseScreen_btn_1, lv_color_hex(0xb7d1e6), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui->fouseScreen_btn_1, lv_color_hex(0x333333), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_bg_grad_dir(ui->fouseScreen_btn_1, LV_GRAD_DIR_NONE, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui->fouseScreen_btn_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_radius(ui->fouseScreen_btn_1, 5, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->fouseScreen_btn_1, 13, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_width(ui->fouseScreen_btn_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->fouseScreen_btn_1, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->fouseScreen_btn_1, lv_color_hex(0xAAAAAA), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui->fouseScreen_btn_1, &lv_font_yezi_hei_16, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui->fouseScreen_btn_1, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui->fouseScreen_btn_1, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -59,10 +57,10 @@ void setup_scr_fouseScreen(lv_ui *ui)
     lv_obj_set_pos(ui->fouseScreen_label_focus_timer, 93, 87);
     lv_obj_set_size(ui->fouseScreen_label_focus_timer, 124, 42);
 
-    //Write style for fouseScreen_label_focus_timer, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    //Write style for fouseScreen_label_focus_timer: 白色文字
     lv_obj_set_style_border_width(ui->fouseScreen_label_focus_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->fouseScreen_label_focus_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->fouseScreen_label_focus_timer, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->fouseScreen_label_focus_timer, lv_color_hex(0xFFFFFF), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui->fouseScreen_label_focus_timer, &lv_font_montserratMedium_40, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui->fouseScreen_label_focus_timer, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_letter_space(ui->fouseScreen_label_focus_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -75,45 +73,27 @@ void setup_scr_fouseScreen(lv_ui *ui)
     lv_obj_set_style_pad_left(ui->fouseScreen_label_focus_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_width(ui->fouseScreen_label_focus_timer, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
-    //Write codes fouseScreen_label_light_info
+    //Write codes fouseScreen_label_light_info (蓝牙灯已移除，隐藏)
     ui->fouseScreen_label_light_info = lv_label_create(ui->fouseScreen);
-    lv_label_set_text(ui->fouseScreen_label_light_info, "台灯色温: 3000K 暖光");
-    lv_label_set_long_mode(ui->fouseScreen_label_light_info, LV_LABEL_LONG_WRAP);
-    lv_obj_set_pos(ui->fouseScreen_label_light_info, 10, 138);
-    lv_obj_set_size(ui->fouseScreen_label_light_info, 173, 22);
+    lv_label_set_text(ui->fouseScreen_label_light_info, "");
+    lv_obj_add_flag(ui->fouseScreen_label_light_info, LV_OBJ_FLAG_HIDDEN);
 
-    //Write style for fouseScreen_label_light_info, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
-    lv_obj_set_style_border_width(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_radius(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->fouseScreen_label_light_info, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui->fouseScreen_label_light_info, &lv_font_yezi_hei_14, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui->fouseScreen_label_light_info, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_letter_space(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui->fouseScreen_label_light_info, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_width(ui->fouseScreen_label_light_info, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-
-    //Write codes fouseScreen_label_status
+    //Write codes fouseScreen_label_status (环境建议)
     ui->fouseScreen_label_status = lv_label_create(ui->fouseScreen);
-    lv_label_set_text(ui->fouseScreen_label_status, "安静陪伴中...");
+    lv_label_set_text(ui->fouseScreen_label_status, "Stay focused...");
     lv_label_set_long_mode(ui->fouseScreen_label_status, LV_LABEL_LONG_WRAP);
-    lv_obj_set_pos(ui->fouseScreen_label_status, 83, 164);
-    lv_obj_set_size(ui->fouseScreen_label_status, 100, 16);
+    lv_obj_set_pos(ui->fouseScreen_label_status, 40, 150);
+    lv_obj_set_size(ui->fouseScreen_label_status, 240, 40);
 
-    //Write style for fouseScreen_label_status, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    //Write style for fouseScreen_label_status: 灰色文字
     lv_obj_set_style_border_width(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->fouseScreen_label_status, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui->fouseScreen_label_status, &lv_font_yezi_hei_15, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->fouseScreen_label_status, lv_color_hex(0x999999), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->fouseScreen_label_status, &lv_font_montserratMedium_16, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui->fouseScreen_label_status, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_letter_space(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui->fouseScreen_label_status, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(ui->fouseScreen_label_status, 2, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->fouseScreen_label_status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_pad_top(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_pad_right(ui->fouseScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -130,7 +110,7 @@ void setup_scr_fouseScreen(lv_ui *ui)
     lv_obj_set_pos(ui->fouseScreen_img_role_focus, 10, 160);
     lv_obj_set_size(ui->fouseScreen_img_role_focus, 60, 60);
 
-    //Write style for fouseScreen_img_role_focus, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    //Write style for fouseScreen_img_role_focus
     lv_obj_set_style_img_recolor_opa(ui->fouseScreen_img_role_focus, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_img_opa(ui->fouseScreen_img_role_focus, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->fouseScreen_img_role_focus, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -143,10 +123,10 @@ void setup_scr_fouseScreen(lv_ui *ui)
 	    lv_obj_set_pos(ui->fouseScreen_label_1, 226, 7);
 	    lv_obj_set_size(ui->fouseScreen_label_1, 100, 32);
 
-	    //Write style for fouseScreen_label_1, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+	    //Write style for fouseScreen_label_1: 白色文字
 	    lv_obj_set_style_border_width(ui->fouseScreen_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 	    lv_obj_set_style_radius(ui->fouseScreen_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-	    lv_obj_set_style_text_color(ui->fouseScreen_label_1, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+	    lv_obj_set_style_text_color(ui->fouseScreen_label_1, lv_color_hex(0xCCCCCC), LV_PART_MAIN|LV_STATE_DEFAULT);
 	    lv_obj_set_style_text_font(ui->fouseScreen_label_1, &lv_font_yezi_hei_20, LV_PART_MAIN|LV_STATE_DEFAULT);
 	    lv_obj_set_style_text_opa(ui->fouseScreen_label_1, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
 	    lv_obj_set_style_text_letter_space(ui->fouseScreen_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);

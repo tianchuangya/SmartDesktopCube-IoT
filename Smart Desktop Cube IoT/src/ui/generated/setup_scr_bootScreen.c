@@ -24,10 +24,8 @@ void setup_scr_bootScreen(lv_ui *ui)
     lv_obj_set_scrollbar_mode(ui->bootScreen, LV_SCROLLBAR_MODE_OFF);
 
     //Write style for bootScreen, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
-    lv_obj_set_style_bg_opa(ui->bootScreen, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_src(ui->bootScreen, &_img_bg_main_320x240, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_opa(ui->bootScreen, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_img_recolor_opa(ui->bootScreen, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui->bootScreen, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->bootScreen, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //Write codes bootScreen_img_boot_sleep
     ui->bootScreen_img_boot_sleep = lv_img_create(ui->bootScreen);
@@ -54,7 +52,7 @@ void setup_scr_bootScreen(lv_ui *ui)
     //Write style for bootScreen_label_status, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
     lv_obj_set_style_border_width(ui->bootScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->bootScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->bootScreen_label_status, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->bootScreen_label_status, lv_color_hex(0xFFFFFF), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui->bootScreen_label_status, &lv_font_yezi_hei_16, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui->bootScreen_label_status, 174, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_letter_space(ui->bootScreen_label_status, 0, LV_PART_MAIN|LV_STATE_DEFAULT);

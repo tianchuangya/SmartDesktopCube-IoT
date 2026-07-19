@@ -55,6 +55,13 @@ void Task_MqttReconnect(void *pvParameters) {
         // ---- 3. 已连接：处理收发 ----
         uint32_t now = millis();
 
+        // OTA 期间：只保持 MQTT 连接（用于上报 OTA 状态），跳过数据推送
+        if (status.ota_in_progress) {
+            mqttLoop();
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
         if (!handshake_sent && now - last_handshake >= 5000) {
             mqttSendHandshake();
             handshake_sent = true;
@@ -75,7 +82,13 @@ void Task_MqttReconnect(void *pvParameters) {
         // ---- 3.5 手动检查更新请求 ----
         if (status.ota_check_requested) {
             status.ota_check_requested = false;
+            status.ota_check_status = 1;  // checking
+            status.ota_check_time = millis();
             mqttSendVersionCheck();
+        }
+        // 检测超时：5秒无响应视为已是最新版本
+        if (status.ota_check_status == 1 && (now - status.ota_check_time > 5000)) {
+            status.ota_check_status = 3;  // latest / no response
         }
 
         // ---- 4. 定时发送 ----

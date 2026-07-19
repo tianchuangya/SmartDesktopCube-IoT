@@ -24,6 +24,7 @@ typedef struct
 	lv_obj_t *bootScreen_label_status;
 	lv_obj_t *mainScreen;
 	bool mainScreen_del;
+	/* ---- 旧 widget（保留声明，不再创建）---- */
 	lv_obj_t *mainScreen_label_time;
 	lv_obj_t *mainScreen_label_summary;
 	lv_obj_t *mainScreen_cont_aqi_card;
@@ -32,8 +33,47 @@ typedef struct
 	lv_obj_t *mainScreen_cont_eco2_card;
 	lv_obj_t *mainScreen_label_eco2_title;
 	lv_obj_t *mainScreen_label_Prompt;
-	lv_obj_t *mainScreen_img_role;
 	lv_obj_t *mainScreen_label_aqi_val;
+	/* ---- 新 widget：顶部状态栏 ---- */
+	lv_obj_t *mainScreen_bar_top;
+	lv_obj_t *mainScreen_label_clock;
+	lv_obj_t *mainScreen_dot_wifi;
+	lv_obj_t *mainScreen_dot_mqtt;
+	lv_obj_t *mainScreen_dot_focus;
+	/* ---- 新 widget：角色列 ---- */
+	lv_obj_t *mainScreen_img_role;
+	lv_obj_t *mainScreen_label_mood;
+	lv_obj_t *mainScreen_label_char_name;
+	/* ---- 新 widget：AQI Hero 卡片 ---- */
+	lv_obj_t *mainScreen_cont_aqi_hero;
+	lv_obj_t *mainScreen_label_aqi_big;
+	lv_obj_t *mainScreen_label_aqi_level;
+	lv_obj_t *mainScreen_label_aqi_detail;
+	/* ---- 新 widget：温度/湿度卡片 ---- */
+	lv_obj_t *mainScreen_cont_temp;
+	lv_obj_t *mainScreen_label_temp_val;
+	lv_obj_t *mainScreen_cont_humi;
+	lv_obj_t *mainScreen_label_humi_val;
+	/* ---- 新 widget：传感器小格 (2行x3列) ---- */
+	lv_obj_t *mainScreen_cell_light;
+	lv_obj_t *mainScreen_label_light_val;
+	lv_obj_t *mainScreen_cell_co2;
+	lv_obj_t *mainScreen_label_co2_val;
+	lv_obj_t *mainScreen_cell_tvoc;
+	lv_obj_t *mainScreen_label_tvoc_val;
+	lv_obj_t *mainScreen_cell_pm25;
+	lv_obj_t *mainScreen_label_pm25_val;
+	lv_obj_t *mainScreen_cell_human;
+	lv_obj_t *mainScreen_label_human_val;
+	lv_obj_t *mainScreen_cell_signal;
+	lv_obj_t *mainScreen_label_signal_val;
+	/* ---- 新 widget：底部栏 ---- */
+	lv_obj_t *mainScreen_bar_bottom;
+	lv_obj_t *mainScreen_label_fw;
+	lv_obj_t *mainScreen_label_auto_brightness;
+	/* ---- 新 widget：告警横幅 ---- */
+	lv_obj_t *mainScreen_alert_banner;
+	/* ---- 保留的旧 widget ---- */
 	lv_obj_t *mainScreen_img_boot_logo;
 	lv_obj_t *mainScreen_img_wifi;
 	lv_obj_t *aircreen;
@@ -135,6 +175,8 @@ LV_IMG_DECLARE(_img_bg_main_320x240);
 
 LV_IMG_DECLARE(_img_bg_report_320x240);
 LV_IMG_DECLARE(_img_role_alert_alpha_100x100);
+LV_IMG_DECLARE(_img_role_alert_alpha_60x60);
+LV_IMG_DECLARE(_img_role_celebrate_alpha_60x60);
 
 LV_FONT_DECLARE(lv_font_yezi_hei_16)
 LV_FONT_DECLARE(lv_font_montserratMedium_18)

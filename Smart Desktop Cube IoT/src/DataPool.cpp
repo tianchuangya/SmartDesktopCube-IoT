@@ -14,8 +14,8 @@ SensorData sensorData = {
 
 // WiFi 默认配置
 WiFiConfig_t wifi_config = {
-  "tmzc",
-  "qzlmzhxjx"
+  "tianchuang",
+  "qzl610929"
 };
 
 FocusConfig_t focusConfig = {
@@ -49,7 +49,21 @@ DeviceStatus status = {
   .ota_progress=0,
   .ota_new_version={0},
   .ota_status_text={0},
-  .ota_check_requested=false
+  .ota_check_requested=false,
+  .ota_check_status=0,
+  .ota_check_time=0,
+  .ota_update_available=false,
+  .ota_pending_url={0},
+  .ota_pending_version={0},
+  .ota_pending_md5={0},
+  .air_quality_alert=false,
+  .temp_comfort_alert=false,
+  .auto_brightness_enabled=true,
+  .silent_mode=false,
+  .pending_toast={0},
+  .toast_pending=false,
+  .modules_ready=false,
+  .boot_status_text={0}
 };
 
 CommandData cmd = {
@@ -122,4 +136,14 @@ ImagePool_t img = {
         .focus_running = nullptr,  // 专注中
         .focus_end     = nullptr   // 结束
     }
+};
+
+// 传感器历史记录初始化（环形缓冲区）
+SensorHistory sensorHistory = {
+    .temp = {0},
+    .humi = {0},
+    .light = {0},
+    .eco2 = {0},
+    .history_index = 0,
+    .history_count = 0
 };

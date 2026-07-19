@@ -27,7 +27,6 @@
 #include "BlinkerApp.h"
 #include "DataPool.h"
 #include "WiFiManager.h"
-#include "BluetoothLight.h"
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <PubSubClient.h>
@@ -128,26 +127,7 @@ static void b_callback(char* topic, byte* payload, unsigned int len)
 
     for (JsonPair kv : data) {
         String key = kv.key().c_str();
-
-        if (key == "bnt-light") {
-            String v = kv.value().as<String>();
-            if (v == "tap" || v == "press") {
-                if (blLight.brightness > 0) BL_TurnOff();
-                else BL_TurnOn();
-            }
-        }
-        else if (key == "ran-liangdu") {
-            int val = kv.value().as<int>();
-            if (val < 0) val = 0;
-            if (val > 100) val = 100;
-            BL_SetBrightness((uint8_t)val);
-        }
-        else if (key == "ran-sewen") {
-            int val = kv.value().as<int>();
-            if (val < 0) val = 0;
-            if (val > 100) val = 100;
-            BL_SetColorTemp((uint8_t)val);
-        }
+        /* 蓝牙灯控制已移除 */
     }
 }
 
@@ -312,9 +292,9 @@ void BlinkerApp_Run()
 
 // ==================== 各控件发送函数 ====================
 
-void BlinkerApp_SendLight()       { b_pubSwi("bnt-light", blLight.brightness > 0 ? "on" : "off"); }
-void BlinkerApp_SendBrightness()  { b_pubVal("ran-liangdu", blLight.brightness); }
-void BlinkerApp_SendColorTemp()   { b_pubVal("ran-sewen", blLight.color_temperature); }
+void BlinkerApp_SendLight()       { /* 蓝牙灯已移除 */ }
+void BlinkerApp_SendBrightness()  { /* 蓝牙灯已移除 */ }
+void BlinkerApp_SendColorTemp()   { /* 蓝牙灯已移除 */ }
 void BlinkerApp_SendTemp()        { b_pubVal("num-wendu", sensorData.temp); }
 void BlinkerApp_SendHumi()        { b_pubVal("num-shidu", sensorData.humi); }
 void BlinkerApp_SendECO2()        { b_pubVal("num-eco2", sensorData.eco2); }
@@ -332,9 +312,6 @@ void BlinkerApp_SendAll()
     JsonDocument doc;
     JsonObject data = doc["data"].to<JsonObject>();
 
-    data["bnt-light"].to<JsonObject>()["swi"] = (blLight.brightness > 0) ? "on" : "off";
-    data["ran-liangdu"].to<JsonObject>()["val"] = blLight.brightness;
-    data["ran-sewen"].to<JsonObject>()["val"] = blLight.color_temperature;
     data["num-wendu"].to<JsonObject>()["val"] = sensorData.temp;
     data["num-shidu"].to<JsonObject>()["val"] = sensorData.humi;
     data["num-eco2"].to<JsonObject>()["val"] = sensorData.eco2;

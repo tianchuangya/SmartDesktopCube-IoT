@@ -1,5 +1,4 @@
 #include "OTAManager.h"
-#include "OTAScreen.h"
 #include "DataPool.h"
 #include <HTTPClient.h>
 #include <Update.h>
@@ -118,7 +117,15 @@ static void otaSetError(const char* msg) {
     Serial.printf("[OTA] ❌ 错误: %s\n", msg);
 }
 
+// ==================== 辅助：更新共享状态（供 LVGL 任务读取）====================
+static void otaSetStatusText(const char* text) {
+    strncpy(status.ota_status_text, text, sizeof(status.ota_status_text) - 1);
+    status.ota_status_text[sizeof(status.ota_status_text) - 1] = '\0';
+}
+
 // ==================== OTA 任务 ====================
+// 注意：此任务不直接调用任何 LVGL 函数！
+// 所有 UI 更新通过 status.ota_* 共享字段，由 custom.c 的 LVGL 定时器渲染。
 void otaTaskFunc(void* pvParameters) {
     while (1) {
         // 等待触发信号
@@ -129,33 +136,37 @@ void otaTaskFunc(void* pvParameters) {
         Serial.println("[OTA] ========== OTA 更新开始 ==========");
         Serial.printf("[OTA] 当前版本: %s\n", FW_VERSION);
 
-        // ---- 1. 显示 OTA 锁屏 ----
-        otaScreenShow(FW_VERSION, trigger_version);
+        // ---- 1. 设置共享状态，LVGL 任务会自动显示 OTA 屏幕 ----
+        status.ota_in_progress = true;
+        status.ota_progress = 0;
+        strncpy(status.ota_new_version, trigger_version, sizeof(status.ota_new_version) - 1);
+        status.ota_new_version[sizeof(status.ota_new_version) - 1] = '\0';
+        otaSetStatusText("Connecting...");
 
         // ---- 2. HTTP 下载 + 流式写入 Flash ----
         HTTPClient http;
-        http.setTimeout(30000);  // 30秒超时（下载大文件时可能需要更长）
+        http.setTimeout(30000);
 
         Serial.printf("[OTA] 正在连接: %s\n", trigger_url);
         bool connected = http.begin(trigger_url);
 
         if (!connected) {
             otaSetError("HTTP 连接失败");
-            otaScreenSetError("连接服务器失败");
-            vTaskDelay(pdMS_TO_TICKS(5000));  // 显示错误5秒
-            otaScreenHide();
+            otaSetStatusText("Connect failed!");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            status.ota_in_progress = false;
             continue;
         }
 
         int httpCode = http.GET();
         if (httpCode != 200) {
             char buf[64];
-            snprintf(buf, sizeof(buf), "HTTP 错误: %d", httpCode);
+            snprintf(buf, sizeof(buf), "HTTP error: %d", httpCode);
             otaSetError(buf);
-            otaScreenSetError(buf);
+            otaSetStatusText(buf);
             http.end();
             vTaskDelay(pdMS_TO_TICKS(5000));
-            otaScreenHide();
+            status.ota_in_progress = false;
             continue;
         }
 
@@ -173,13 +184,20 @@ void otaTaskFunc(void* pvParameters) {
         xSemaphoreGive(otaMutex);
 
         // ---- 3. 准备 Update（擦除 OTA 分区）----
+        otaSetStatusText("Preparing flash...");
         if (!Update.begin(totalSize, U_FLASH)) {
             otaSetError("Flash 分区擦除失败");
-            otaScreenSetError("存储空间不足");
+            otaSetStatusText("Flash error!");
             http.end();
             vTaskDelay(pdMS_TO_TICKS(5000));
-            otaScreenHide();
+            status.ota_in_progress = false;
             continue;
+        }
+
+        // 设置期望 MD5
+        if (strlen(trigger_md5) > 0) {
+            Update.setMD5(trigger_md5);
+            Serial.printf("[OTA] 期望 MD5: %s\n", trigger_md5);
         }
 
         // ---- 4. 流式下载 + 写入 ----
@@ -207,7 +225,6 @@ void otaTaskFunc(void* pvParameters) {
 
             int bytesRead = stream->readBytes(buffer, toRead);
             if (bytesRead <= 0) {
-                // 流中断，检查是否已经下载完成
                 if (downloaded >= totalSize) break;
                 downloadOk = false;
                 break;
@@ -217,9 +234,9 @@ void otaTaskFunc(void* pvParameters) {
             size_t written = Update.write(buffer, bytesRead);
             if (written != (size_t)bytesRead) {
                 char buf[64];
-                snprintf(buf, sizeof(buf), "Flash 写入失败 @ %u/%u", downloaded, totalSize);
+                snprintf(buf, sizeof(buf), "Flash write fail @%u", downloaded);
                 otaSetError(buf);
-                otaScreenSetError("固件写入失败");
+                otaSetStatusText("Write failed!");
                 downloadOk = false;
                 break;
             }
@@ -227,23 +244,23 @@ void otaTaskFunc(void* pvParameters) {
             downloaded += bytesRead;
 
             // 更新共享进度
+            int pct = (totalSize > 0) ? (int)(downloaded * 100 / totalSize) : 0;
             xSemaphoreTake(otaMutex, portMAX_DELAY);
             ota.bytes_downloaded = downloaded;
-            if (totalSize > 0) {
-                ota.progress = (int)(downloaded * 100 / totalSize);
-            }
+            ota.progress = pct;
             xSemaphoreGive(otaMutex);
 
-            // 每 5% 更新 UI
-            if (ota.progress != lastProgress && ota.progress % 5 == 0) {
-                lastProgress = ota.progress;
-                char status[64];
-                snprintf(status, sizeof(status), "正在下载固件...%d%%", ota.progress);
-                otaScreenUpdateProgress(ota.progress, status);
-                Serial.printf("[OTA] 进度: %d%% (%u/%u)\n", ota.progress, downloaded, totalSize);
+            // 更新 status 共享字段（LVGL 任务读取）
+            if (pct != lastProgress) {
+                lastProgress = pct;
+                status.ota_progress = pct;
+                char st[64];
+                snprintf(st, sizeof(st), "Downloading... %d%%", pct);
+                otaSetStatusText(st);
+                Serial.printf("[OTA] 进度: %d%% (%u/%u)\n", pct, downloaded, totalSize);
             }
 
-            // 让出 CPU 给 LVGL 刷新屏幕
+            // 让出 CPU
             vTaskDelay(pdMS_TO_TICKS(5));
         }
 
@@ -251,7 +268,8 @@ void otaTaskFunc(void* pvParameters) {
 
         if (!downloadOk) {
             Update.abort();
-            otaScreenHide();
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            status.ota_in_progress = false;
             continue;
         }
 
@@ -261,17 +279,18 @@ void otaTaskFunc(void* pvParameters) {
         ota.progress = 100;
         xSemaphoreGive(otaMutex);
 
-        otaScreenUpdateProgress(100, "正在校验固件...");
+        status.ota_progress = 100;
+        otaSetStatusText("Verifying...");
         Serial.println("[OTA] 固件下载完成，正在校验...");
 
         if (!Update.end()) {
             char buf[64];
-            snprintf(buf, sizeof(buf), "固件校验失败: %s", Update.errorString());
+            snprintf(buf, sizeof(buf), "Verify fail: %s", Update.errorString());
             otaSetError(buf);
-            otaScreenSetError("固件校验失败，请重试");
+            otaSetStatusText("Verify failed!");
             Serial.printf("[OTA] ❌ %s\n", buf);
             vTaskDelay(pdMS_TO_TICKS(5000));
-            otaScreenHide();
+            status.ota_in_progress = false;
             continue;
         }
 
@@ -280,8 +299,9 @@ void otaTaskFunc(void* pvParameters) {
         ota.state = OTA_SUCCESS;
         xSemaphoreGive(otaMutex);
 
+        status.ota_progress = 100;
+        otaSetStatusText("Done! Rebooting...");
         Serial.println("[OTA] ✅ 固件更新成功！3秒后重启...");
-        otaScreenUpdateProgress(100, "更新完成！即将重启...");
         vTaskDelay(pdMS_TO_TICKS(3000));
 
         ESP.restart();

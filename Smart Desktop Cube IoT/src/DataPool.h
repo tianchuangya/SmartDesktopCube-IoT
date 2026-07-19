@@ -37,6 +37,17 @@ typedef struct {
     uint32_t last_manual_exit_ms;   // 上次手动退出专注的时间戳（毫秒），0=不在冷却期
 } FocusConfig_t;
 
+// 传感器历史记录（用于趋势图和预测）
+#define HISTORY_SIZE 60  // 60 个点 × 5 分钟间隔 = 5 小时历史
+typedef struct {
+    float temp[HISTORY_SIZE];    // 温度历史
+    float humi[HISTORY_SIZE];    // 湿度历史
+    float light[HISTORY_SIZE];   // 光照历史
+    float eco2[HISTORY_SIZE];    // CO2 历史
+    int history_index;           // 当前写入位置（环形缓冲）
+    int history_count;           // 已记录点数（最多 HISTORY_SIZE）
+} SensorHistory;
+
 // 设备状态结构体
 typedef struct {
   bool wifi_connected;  // WiFi连接状态
@@ -58,6 +69,23 @@ typedef struct {
   char ota_new_version[32];   // OTA 新固件版本号
   char ota_status_text[64];   // OTA 状态描述文字
   bool ota_check_requested;   // 用户手动请求检查更新
+  uint8_t ota_check_status;   // 0=idle 1=checking 2=update_available 3=latest 4=failed
+  uint32_t ota_check_time;    // 发起检测的时间戳(millis)
+  bool ota_update_available;  // 后端返回了新版本，等待用户确认
+  char ota_pending_url[256];  // 待确认的固件下载地址
+  char ota_pending_version[32]; // 待确认的新版本号
+  char ota_pending_md5[33];   // 待确认的 MD5
+  // ---- 本地智能决策 ----
+  bool air_quality_alert;     // 空气质量告警（CO2>1000 或 TVOC>0.5）
+  bool temp_comfort_alert;    // 温度舒适度告警（<18°C 或 >28°C）
+  bool auto_brightness_enabled; // 是否启用自动亮度调节
+  bool silent_mode;           // 免打扰模式（夜间不告警）
+  // ---- Web→TFT 弹窗通知 ----
+  char pending_toast[48];     // 待显示的弹窗文字
+  volatile bool toast_pending; // 是否有待显示弹窗
+  // ---- 启动模块加载 ----
+  bool modules_ready;         // 所有模块初始化完成
+  char boot_status_text[32];  // 启动状态文字（供LVGL任务显示）
 } DeviceStatus;
 
 // 指令数据结构体
@@ -154,4 +182,5 @@ extern CommandData cmd;
 extern SecurityData security;
 extern ImagePool_t    img; 
 extern FocusConfig_t focusConfig;
+extern SensorHistory sensorHistory;
 #endif 

@@ -111,35 +111,35 @@ static void mqttCallback(char* topic, byte* payload, unsigned int len) {
         return;
     }
 
-    // ---- OTA 固件更新指令（兼容旧格式）----
+    // ---- OTA 固件更新响应（不自动更新，等待网页端确认）----
     if (doc["type"].is<const char*>() &&
         strcmp(doc["type"], "ota_update") == 0) {
+        int code = doc["code"] | 0;
         const char* ota_url = doc["url"] | "";
         const char* ota_ver = doc["version"] | "";
         const char* ota_md5 = doc["md5"] | "";
 
-        if (strlen(ota_url) == 0) {
-            Serial.println("[OTA] ⚠ 收到 OTA 指令但 url 为空，忽略");
-        } else {
-            Serial.printf("[OTA] 收到 OTA 指令:\n");
+        if (code == 200 && strlen(ota_url) > 0) {
+            // 有新版本，存储待确认信息
+            Serial.printf("[OTA] 收到新版本通知（等待用户确认）:\n");
             Serial.printf("  URL:     %s\n", ota_url);
             Serial.printf("  Version: %s\n", ota_ver);
             Serial.printf("  MD5:     %s\n", ota_md5);
 
-            bool triggered = otaTrigger(ota_url, ota_ver, ota_md5);
-            if (!triggered) {
-                JsonDocument resp;
-                resp["device_id"] = security.did;
-                resp["token"] = security.token;
-                resp["type"] = "ota_status";
-                resp["status"] = "skipped";
-                resp["msg"] = "Version too old or OTA in progress";
-                char json[256];
-                serializeJson(resp, json);
-                mqttPublish(topic_status, json);
-            } else {
-                mqttSendControlAck("ota_update", ota_ver, "success");
-            }
+            strncpy(status.ota_pending_url, ota_url, sizeof(status.ota_pending_url) - 1);
+            status.ota_pending_url[sizeof(status.ota_pending_url) - 1] = '\0';
+            strncpy(status.ota_pending_version, ota_ver, sizeof(status.ota_pending_version) - 1);
+            status.ota_pending_version[sizeof(status.ota_pending_version) - 1] = '\0';
+            strncpy(status.ota_pending_md5, ota_md5, sizeof(status.ota_pending_md5) - 1);
+            status.ota_pending_md5[sizeof(status.ota_pending_md5) - 1] = '\0';
+            status.ota_update_available = true;
+            status.ota_check_status = 2;  // update_available
+
+            mqttSendControlAck("ota_update", ota_ver, "pending_confirm");
+        } else {
+            // code==204 或 url 为空：已是最新版本
+            Serial.println("[OTA] 服务器回复：已是最新版本");
+            status.ota_check_status = 3;  // latest
         }
         return;
     }

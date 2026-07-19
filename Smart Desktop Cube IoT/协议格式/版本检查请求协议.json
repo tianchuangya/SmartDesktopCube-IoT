@@ -1,0 +1,7 @@
+{
+  "device_id": string,          // 设备ID（MAC地址）
+  "token": string,              // 握手获取的临时Token
+  "timestamp": int,             // 请求时间（Unix时间戳，秒）
+  "type": string,               // 固定：version_check
+  "current_version": string     // 当前固件版本号（如 "v1.1.0"）
+}
