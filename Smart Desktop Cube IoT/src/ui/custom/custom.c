@@ -216,6 +216,16 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         }
     }
 
+    /* 远程/网页退出专注：focus_mode 已被外部清除，但屏幕仍停留在专注页 → 返回主界面 */
+    if (active == gui_ui->fouseScreen && last_active == gui_ui->fouseScreen && !status.focus_mode) {
+        sensorData.focus_duration = 0;
+        focusMode_notifyManualExit();
+        if (gui_ui->mainScreen) {
+            lv_scr_load_anim(gui_ui->mainScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+            printf("[Focus] remote exit -> mainScreen\n");
+        }
+    }
+
     status.on_main_screen = (active == gui_ui->mainScreen);
 
     // ========== mainScreen ==========

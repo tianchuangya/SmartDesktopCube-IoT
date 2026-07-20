@@ -10,6 +10,11 @@
 #define TFT_RST  4
 #define TFT_BL   42
 
+/* 背光 LEDC 配置：10kHz PWM（默认analogWrite仅976Hz，会被背光驱动电容滤平导致调光无效） */
+#define BL_LEDC_CHANNEL  0
+#define BL_LEDC_FREQ     10000
+#define BL_LEDC_BITS     8
+
 static Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 static constexpr uint32_t DISP_BUF_SIZE = 320 * 48;
 static lv_color_t buf1[DISP_BUF_SIZE];
@@ -36,7 +41,9 @@ void lv_port_disp_init(void)
     tft.setRotation(1);
 
     pinMode(TFT_BL, OUTPUT);
-    analogWrite(TFT_BL, 255);   // 使用PWM初始化，确保后续亮度调节生效
+    ledcSetup(BL_LEDC_CHANNEL, BL_LEDC_FREQ, BL_LEDC_BITS);
+    ledcAttachPin(TFT_BL, BL_LEDC_CHANNEL);
+    ledcWrite(BL_LEDC_CHANNEL, 255);
 
     lv_init();
 
@@ -53,5 +60,5 @@ void lv_port_disp_init(void)
 void lv_port_disp_set_backlight(uint8_t brightness)
 {
     if (brightness > 100) brightness = 100;
-    analogWrite(TFT_BL, brightness * 255 / 100);
+    ledcWrite(BL_LEDC_CHANNEL, brightness * 255 / 100);
 }
