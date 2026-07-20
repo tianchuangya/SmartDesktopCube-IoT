@@ -127,42 +127,61 @@ static void handleRoot() {
                 if(d.silent_mode) a+='<div class="status ok">免打扰模式已开启</div>';
                 if(!a) a='<div class="status ok">一切正常</div>';
                 document.getElementById('alerts').innerHTML=a;
-                // OTA 状态
+                // OTA 状态 (ota_check_status: 0=idle 1=checking 2=update_available 3=latest 4=failed 5=timeout)
                 document.getElementById('fw-ver').textContent = d.fw_version || '--';
                 var cs = d.ota_check_status;
+                var btnCheck = document.getElementById('btn-check');
                 if(d.ota_in_progress){
-                    document.getElementById('btn-check').style.display='none';
+                    btnCheck.style.display='none';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='block';
                     document.getElementById('ota-prog-text').textContent='正在更新... '+d.ota_progress+'%';
+                    document.getElementById('ota-prog-text').className='status ok';
                 } else if(cs==2 || d.ota_update_available){
-                    document.getElementById('btn-check').style.display='none';
+                    btnCheck.style.display='none';
                     document.getElementById('ota-available').style.display='block';
                     document.getElementById('ota-progress').style.display='none';
                     document.getElementById('ota-info').textContent='发现新版本: '+d.ota_pending_version;
                     document.getElementById('ota-info').className='status warn';
                 } else if(cs==1){
-                    document.getElementById('btn-check').style.display='block';
-                    document.getElementById('btn-check').textContent='检测中...';
+                    btnCheck.style.display='block';
+                    btnCheck.textContent='检测中...';
+                    btnCheck.disabled=true;
+                    btnCheck.style.opacity='0.5';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='none';
                 } else if(cs==3){
-                    document.getElementById('btn-check').style.display='block';
-                    document.getElementById('btn-check').textContent='检测更新';
+                    btnCheck.style.display='block';
+                    btnCheck.textContent='检测更新';
+                    btnCheck.disabled=false;
+                    btnCheck.style.opacity='1';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='block';
                     document.getElementById('ota-prog-text').textContent='已是最新版本';
                     document.getElementById('ota-prog-text').className='status ok';
                 } else if(cs==4){
-                    document.getElementById('btn-check').style.display='block';
-                    document.getElementById('btn-check').textContent='检测更新';
+                    btnCheck.style.display='block';
+                    btnCheck.textContent='检测更新';
+                    btnCheck.disabled=false;
+                    btnCheck.style.opacity='1';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='block';
-                    document.getElementById('ota-prog-text').textContent='检测失败，MQTT未连接';
+                    document.getElementById('ota-prog-text').textContent='检测失败：MQTT未连接';
+                    document.getElementById('ota-prog-text').className='status warn';
+                } else if(cs==5){
+                    btnCheck.style.display='block';
+                    btnCheck.textContent='检测更新';
+                    btnCheck.disabled=false;
+                    btnCheck.style.opacity='1';
+                    document.getElementById('ota-available').style.display='none';
+                    document.getElementById('ota-progress').style.display='block';
+                    document.getElementById('ota-prog-text').textContent='检测超时（5s无响应），请重试';
                     document.getElementById('ota-prog-text').className='status warn';
                 } else {
-                    document.getElementById('btn-check').style.display='block';
-                    document.getElementById('btn-check').textContent='检测更新';
+                    btnCheck.style.display='block';
+                    btnCheck.textContent='检测更新';
+                    btnCheck.disabled=false;
+                    btnCheck.style.opacity='1';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='none';
                 }

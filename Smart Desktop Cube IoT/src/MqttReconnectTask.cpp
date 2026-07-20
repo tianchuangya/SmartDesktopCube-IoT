@@ -82,13 +82,17 @@ void Task_MqttReconnect(void *pvParameters) {
         // ---- 3.5 手动检查更新请求 ----
         if (status.ota_check_requested) {
             status.ota_check_requested = false;
-            status.ota_check_status = 1;  // checking
-            status.ota_check_time = millis();
-            mqttSendVersionCheck();
+            /* 正在检测中则忽略重复触发，防止连点导致重复发送 */
+            if (status.ota_check_status != 1) {
+                status.ota_check_status = 1;  // checking
+                status.ota_check_time = millis();
+                mqttSendVersionCheck();
+            }
         }
-        // 检测超时：5秒无响应视为已是最新版本
+        // 检测超时：5秒无响应 → 取消本轮检测（状态5=超时）
         if (status.ota_check_status == 1 && (now - status.ota_check_time > 5000)) {
-            status.ota_check_status = 3;  // latest / no response
+            status.ota_check_status = 5;  // timeout
+            Serial.println("[OTA] 版本检测超时（5s无响应），已取消本轮检测");
         }
 
         // ---- 4. 定时发送 ----

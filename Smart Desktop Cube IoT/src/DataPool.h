@@ -69,7 +69,7 @@ typedef struct {
   char ota_new_version[32];   // OTA 新固件版本号
   char ota_status_text[64];   // OTA 状态描述文字
   bool ota_check_requested;   // 用户手动请求检查更新
-  uint8_t ota_check_status;   // 0=idle 1=checking 2=update_available 3=latest 4=failed
+  uint8_t ota_check_status;   // 0=idle 1=checking 2=update_available 3=latest 4=failed 5=timeout
   uint32_t ota_check_time;    // 发起检测的时间戳(millis)
   bool ota_update_available;  // 后端返回了新版本，等待用户确认
   char ota_pending_url[256];  // 待确认的固件下载地址

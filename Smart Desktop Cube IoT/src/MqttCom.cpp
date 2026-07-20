@@ -114,6 +114,13 @@ static void mqttCallback(char* topic, byte* payload, unsigned int len) {
     // ---- OTA 固件更新响应（不自动更新，等待网页端确认）----
     if (doc["type"].is<const char*>() &&
         strcmp(doc["type"], "ota_update") == 0) {
+        /* 只在本轮检测窗口内接受响应；超时/取消后到达的迟到消息直接丢弃，
+           防止后端重发导致"请求-响应"死循环 */
+        if (status.ota_check_status != 1) {
+            Serial.println("[OTA] 收到迟到的 ota_update，已忽略（检测窗口已关闭）");
+            return;
+        }
+
         int code = doc["code"] | 0;
         const char* ota_url = doc["url"] | "";
         const char* ota_ver = doc["version"] | "";
