@@ -1,6 +1,7 @@
 #include "WebServerTask.h"
 #include "LocalIntelligence.h"
 #include "OTAManager.h"
+#include "WiFiManager.h"
 #include "DataPool.h"
 #include "lv_port_disp.h"
 #include <Arduino.h>
@@ -102,6 +103,22 @@ static void handleRoot() {
             </div>
         </div>
     </div>
+    <div class="card">
+        <h2>WiFi 配置</h2>
+        <div class="sensor"><span>当前网络</span><span class="value" id="wifi-ssid">--</span></div>
+        <div class="sensor"><span>连接状态</span><span class="value" id="wifi-status">--</span></div>
+        <button class="btn" style="background:#ff9800;color:#fff;" id="btn-scan" onclick="scanWifi()">扫描 WiFi</button>
+        <div id="wifi-list" style="display:none;margin:10px 0;">
+            <select id="wifi-select" style="width:100%;padding:10px;border-radius:8px;background:#1a1a2e;color:#eee;border:1px solid #333;font-size:0.9em;">
+                <option value="">-- 选择网络 --</option>
+            </select>
+        </div>
+        <div id="wifi-form" style="display:none;margin-top:10px;">
+            <input type="password" id="wifi-pwd" placeholder="输入 WiFi 密码" style="width:100%;padding:10px;border-radius:8px;background:#1a1a2e;color:#eee;border:1px solid #333;font-size:0.9em;margin-bottom:8px;">
+            <button class="btn" style="background:#4caf50;color:#fff;" onclick="connectWifi()">连接</button>
+        </div>
+        <div id="wifi-result" style="display:none;margin-top:8px;"></div>
+    </div>
     <script>
         function updateData() {
             fetch('/api/data').then(r=>r.json()).then(d=>{
@@ -127,6 +144,10 @@ static void handleRoot() {
                 if(d.silent_mode) a+='<div class="status ok">免打扰模式已开启</div>';
                 if(!a) a='<div class="status ok">一切正常</div>';
                 document.getElementById('alerts').innerHTML=a;
+                // WiFi 状态
+                document.getElementById('wifi-ssid').textContent = d.wifi_ssid || '--';
+                document.getElementById('wifi-status').textContent = d.wifi_connected ? '已连接 ✅' : '未连接 ❌';
+                document.getElementById('wifi-status').style.color = d.wifi_connected ? '#a5d6a7' : '#ff8a80';
                 // OTA 状态 (ota_check_status: 0=idle 1=checking 2=update_available 3=latest 4=failed 5=timeout)
                 document.getElementById('fw-ver').textContent = d.fw_version || '--';
                 var cs = d.ota_check_status;
@@ -166,7 +187,7 @@ static void handleRoot() {
                     btnCheck.style.opacity='1';
                     document.getElementById('ota-available').style.display='none';
                     document.getElementById('ota-progress').style.display='block';
-                    document.getElementById('ota-prog-text').textContent='检测失败：MQTT未连接';
+                    document.getElementById('ota-prog-text').textContent='检测失败：MQTT未连接或认证未完成';
                     document.getElementById('ota-prog-text').className='status warn';
                 } else if(cs==5){
                     btnCheck.style.display='block';
@@ -211,6 +232,48 @@ static void handleRoot() {
         function dismissUpdate(){
             fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'dismiss_update',value:'1'})}).then(()=>setTimeout(updateData,300));
         }
+        // ===== WiFi 配置 =====
+        function scanWifi(){
+            var btn=document.getElementById('btn-scan');
+            btn.textContent='扫描中...';btn.disabled=true;
+            fetch('/api/wifi/scan').then(r=>r.json()).then(d=>{
+                btn.textContent='扫描 WiFi';btn.disabled=false;
+                var sel=document.getElementById('wifi-select');
+                sel.innerHTML='<option value="">-- 选择网络 --</option>';
+                d.networks.forEach(function(n){
+                    var opt=document.createElement('option');
+                    opt.value=n.ssid;
+                    opt.textContent=n.ssid+' ('+n.rssi+'dBm)'+(n.secure?' 🔒':' 📶');
+                    sel.appendChild(opt);
+                });
+                document.getElementById('wifi-list').style.display='block';
+                document.getElementById('wifi-form').style.display='none';
+                document.getElementById('wifi-result').style.display='none';
+            }).catch(function(){btn.textContent='扫描 WiFi';btn.disabled=false;});
+        }
+        document.addEventListener('DOMContentLoaded',function(){
+            var sel=document.getElementById('wifi-select');
+            if(sel) sel.addEventListener('change',function(){
+                document.getElementById('wifi-form').style.display=this.value?'block':'none';
+            });
+        });
+        function connectWifi(){
+            var ssid=document.getElementById('wifi-select').value;
+            var pwd=document.getElementById('wifi-pwd').value;
+            if(!ssid){alert('请先选择 WiFi');return;}
+            var res=document.getElementById('wifi-result');
+            res.style.display='block';
+            res.innerHTML='<div class="status warn">正在连接 '+ssid+' ...</div>';
+            fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ssid,password:pwd})})
+            .then(r=>r.json()).then(d=>{
+                if(d.success){
+                    res.innerHTML='<div class="status ok">✅ 已连接 '+ssid+'，IP: '+d.ip+'</div>';
+                }else{
+                    res.innerHTML='<div class="status warn">❌ 连接失败：'+d.msg+'</div>';
+                }
+                setTimeout(updateData,1000);
+            }).catch(function(){res.innerHTML='<div class="status warn">请求失败</div>';});
+        }
         setInterval(updateData,2000);
         updateData();
     </script>
@@ -244,6 +307,7 @@ static void handleApiData() {
     doc["temp_comfort_alert"] = status.temp_comfort_alert;
     
     doc["wifi_connected"] = status.wifi_connected;
+    doc["wifi_ssid"] = WiFiManager_GetSSID();
     doc["mqtt_connected"] = status.mqtt_connected;
     doc["screen_brightness"] = status.screen_brightness;
     
@@ -375,6 +439,9 @@ static void handleApiControl() {
     else if (strcmp(command, "check_update") == 0) {
         if (!status.mqtt_connected) {
             status.ota_check_status = 4;  // failed - no MQTT
+        } else if (!security.token_ok) {
+            status.ota_check_status = 4;  // failed - token not ready (handshake pending)
+            Serial.println("[OTA] Web请求检测，但Token未就绪");
         } else {
             status.ota_check_requested = true;
             status.ota_check_status = 1;  // checking
@@ -404,6 +471,66 @@ static void handleApiControl() {
     Serial.printf("[Web] Control: %s = %s\n", command, value ? value : "null");
 }
 
+// ==================== API: WiFi 扫描 ====================
+static void handleWifiScan() {
+    Serial.println("[Web] WiFi 扫描请求");
+    String result = WiFiManager_Scan();
+    webServer.send(200, "application/json", result);
+}
+
+// ==================== API: WiFi 连接 ====================
+static void handleWifiConnect() {
+    if (!webServer.hasArg("plain")) {
+        webServer.send(400, "application/json", "{\"success\":false,\"msg\":\"No body\"}");
+        return;
+    }
+    String body = webServer.arg("plain");
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+        webServer.send(400, "application/json", "{\"success\":false,\"msg\":\"Invalid JSON\"}");
+        return;
+    }
+    const char* ssid = doc["ssid"] | "";
+    const char* password = doc["password"] | "";
+
+    if (strlen(ssid) == 0) {
+        webServer.send(400, "application/json", "{\"success\":false,\"msg\":\"SSID为空\"}");
+        return;
+    }
+
+    Serial.printf("[Web] WiFi 连接请求: SSID=%s\n", ssid);
+    bool ok = WiFiManager_ConnectTo(ssid, password);
+
+    JsonDocument resp;
+    resp["success"] = ok;
+    if (ok) {
+        resp["ip"] = WiFi.localIP().toString();
+        resp["msg"] = "连接成功";
+        setToast("WiFi Connected!");
+    } else {
+        resp["msg"] = "连接超时，请检查密码或距离";
+    }
+    String out;
+    serializeJson(resp, out);
+    webServer.send(200, "application/json", out);
+}
+
+// ==================== Captive Portal 检测端点 ====================
+// Android: 访问 /generate_204，期望收到 204 或重定向
+// iOS: 访问 /hotspot-detect.html，期望收到特定 HTML
+// Windows: 访问 /ncsi.txt
+static void handleCaptivePortal() {
+    // 重定向到控制页面（触发手机弹出 Captive Portal 窗口）
+    String ip = WiFi.softAPIP().toString();
+    webServer.sendHeader("Location", "http://" + ip + "/");
+    webServer.send(302, "text/plain", "");
+}
+
+static void handleCaptiveApple() {
+    // iOS 检测：返回非标准内容触发弹窗
+    webServer.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+}
+
 // ==================== CORS 支持（允许跨域请求）====================
 static void handleCors() {
     webServer.sendHeader("Access-Control-Allow-Origin", "*");
@@ -414,6 +541,14 @@ static void handleCors() {
 
 // ==================== Web 服务器任务 ====================
 static void WebServerTask(void* pvParameters) {
+    // 等待 WiFi/TCP-IP 协议栈就绪（AP 启动 = lwip 已初始化）
+    // 不等待直接 begin() 会触发 "Invalid mbox" 断言崩溃
+    Serial.println("[Web] 等待网络就绪...");
+    while (WiFi.softAPIP() == IPAddress(0, 0, 0, 0)) {
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    Serial.printf("[Web] 网络就绪，AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+
     // 启动 mDNS（让 ESP32 可通过 cube.local 访问）
     if (MDNS.begin(MDNS_HOSTNAME)) {
         Serial.printf("[Web] mDNS started: http://%s.local/\n", MDNS_HOSTNAME);
@@ -427,6 +562,14 @@ static void WebServerTask(void* pvParameters) {
     webServer.on("/api/history", HTTP_GET, handleApiHistory);
     webServer.on("/api/control", HTTP_POST, handleApiControl);
     webServer.on("/api/control", HTTP_OPTIONS, handleCors);
+    webServer.on("/api/wifi/scan", HTTP_GET, handleWifiScan);
+    webServer.on("/api/wifi/connect", HTTP_POST, handleWifiConnect);
+    // Captive Portal 检测（手机连 AP 后自动弹出页面）
+    webServer.on("/generate_204", HTTP_GET, handleCaptivePortal);       // Android
+    webServer.on("/hotspot-detect.html", HTTP_GET, handleCaptiveApple); // iOS
+    webServer.on("/library/test/success.html", HTTP_GET, handleCaptiveApple); // iOS alt
+    webServer.on("/ncsi.txt", HTTP_GET, handleCaptivePortal);           // Windows
+    webServer.on("/connecttest.txt", HTTP_GET, handleCaptivePortal);    // Windows 11
     
     // 启动服务器
     webServer.begin();
@@ -434,8 +577,32 @@ static void WebServerTask(void* pvParameters) {
     Serial.printf("[Web]    mDNS: http://%s.local/\n", MDNS_HOSTNAME);
     Serial.printf("[Web]    IP:   http://%s/\n", WiFi.localIP().toString().c_str());
     
+    uint8_t last_ap_clients = 0;
+    uint32_t last_ap_toast = 0;
+
     while (1) {
         webServer.handleClient();
+
+        // Captive Portal DNS 处理
+        WiFiManager_DNSLoop();
+
+        // 检测 AP 客户端 → 持续显示 IP 浮窗，断开后自动消失
+        uint8_t ap_clients = WiFiManager_GetAPClientCount();
+        if (ap_clients > 0) {
+            // 有设备连着：每 5 秒刷新一次 toast 保持可见
+            if (millis() - last_ap_toast > 5000) {
+                last_ap_toast = millis();
+                char msg[48];
+                if (status.wifi_connected) {
+                    snprintf(msg, sizeof(msg), "Ctrl: %s", WiFi.localIP().toString().c_str());
+                } else {
+                    snprintf(msg, sizeof(msg), "Ctrl: %s", WiFi.softAPIP().toString().c_str());
+                }
+                setToast(msg);
+            }
+        }
+        last_ap_clients = ap_clients;
+
         vTaskDelay(pdMS_TO_TICKS(10));  // 让出 CPU
     }
 }

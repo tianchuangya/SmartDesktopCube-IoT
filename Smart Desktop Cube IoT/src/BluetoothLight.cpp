@@ -306,6 +306,13 @@ static void yl_Task(void* pvParameters)
             continue;
         }
 
+        // ---- OTA 期间：暂停灯带控制，断开 TCP，避免干扰 OTA TLS ----
+        if (status.ota_in_progress) {
+            yl_disconnect();
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
         // ---- WiFi 刚连上：运行一次诊断 ----
         if (!diagnosed) {
             diagnosed = true;

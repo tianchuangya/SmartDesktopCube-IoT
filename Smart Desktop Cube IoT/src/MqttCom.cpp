@@ -168,6 +168,12 @@ void mqttInit() {
 bool mqttConnect(uint32_t timeout_ms) {
     if (mqtt.connected()) return true;
 
+    // 关键修复：强制关闭旧 socket，防止异常断连后 WiFiClient 卡在 CLOSE_WAIT
+    // 不清理的话，服务器崩溃/内网穿透断掉后永远连不上
+    mqtt.disconnect();
+    wifiClient.stop();
+    delay(50);  // 等 socket 完全释放
+
     const uint32_t start = millis();
     while (millis() - start < timeout_ms) {
         if (mqtt.connect(security.mqtt_client_id)) {  // 使用 MAC-based Client ID
@@ -194,6 +200,7 @@ bool mqttConnect(uint32_t timeout_ms) {
 
 void mqttDisconnect() {
     mqtt.disconnect();
+    wifiClient.stop();   // 确保底层 TCP socket 释放
 }
 
 bool mqttSubscribe(const char* topic) {

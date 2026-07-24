@@ -7,9 +7,8 @@ extern SemaphoreHandle_t dataMutex;
 void Task_Network_Init(void *pvParameters){
     while(1)
     {
-        
-        if(!WiFiManager_IsConnected())WiFiManager_Connect(); 
-        else status.wifi_connected = true;
+        // 始终调用：首次启动 AP+DNS，已连接时内部直接 return
+        WiFiManager_Connect();
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }

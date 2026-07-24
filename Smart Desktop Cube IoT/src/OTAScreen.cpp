@@ -44,7 +44,7 @@ void otaScreenShow(const char* currentVer, const char* newVer) {
     // ---- 版本信息 ----
     ota_label_ver = lv_label_create(ota_overlay);
     char ver_text[64];
-    snprintf(ver_text, sizeof(ver_text), "固件更新\n当前: %s  →  新版本: %s", currentVer, newVer);
+    snprintf(ver_text, sizeof(ver_text), "OTA Update\n%s  ->  %s", currentVer, newVer);
     lv_label_set_text(ota_label_ver, ver_text);
     lv_obj_set_pos(ota_label_ver, 10, 10);
     lv_obj_set_size(ota_label_ver, 260, 40);
@@ -77,7 +77,7 @@ void otaScreenShow(const char* currentVer, const char* newVer) {
 
     // ---- 状态文字 ----
     ota_label_stat = lv_label_create(ota_overlay);
-    lv_label_set_text(ota_label_stat, "正在连接服务器...");
+    lv_label_set_text(ota_label_stat, "Connecting...");
     lv_obj_set_pos(ota_label_stat, 10, 130);
     lv_obj_set_size(ota_label_stat, 260, 24);
     lv_obj_set_style_text_color(ota_label_stat, lv_color_hex(0xAAAAAA), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -86,7 +86,7 @@ void otaScreenShow(const char* currentVer, const char* newVer) {
 
     // ---- 警告文字 ----
     ota_label_warn = lv_label_create(ota_overlay);
-    lv_label_set_text(ota_label_warn, "⚠ 设备正在更新中\n请勿断电或关机！");
+    lv_label_set_text(ota_label_warn, "DO NOT power off\nduring update!");
     lv_obj_set_pos(ota_label_warn, 10, 160);
     lv_obj_set_size(ota_label_warn, 260, 36);
     lv_obj_set_style_text_color(ota_label_warn, lv_color_hex(0xFF6B6B), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -135,7 +135,7 @@ void otaScreenSetError(const char* error) {
         lv_obj_set_style_text_color(ota_label_stat, lv_color_hex(0xFF4444), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
     if (ota_label_warn) {
-        lv_label_set_text(ota_label_warn, "❌ 更新失败\n请检查网络后重试");
+        lv_label_set_text(ota_label_warn, "Update failed!\nCheck network & retry");
     }
     if (ota_bar) {
         lv_obj_set_style_bg_color(ota_bar, lv_color_hex(0xFF4444), LV_PART_INDICATOR | LV_STATE_DEFAULT);
@@ -157,7 +157,7 @@ void otaScreenHide() {
 
     // 恢复 lockScreen 文字
     if (guider_ui.lockScreen_label_title) {
-        lv_label_set_text(guider_ui.lockScreen_label_title, "设备已锁定");
+        lv_label_set_text(guider_ui.lockScreen_label_title, "Locked");
     }
 
     last_percent = -1;

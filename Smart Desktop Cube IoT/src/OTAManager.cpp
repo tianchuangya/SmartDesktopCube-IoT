@@ -1,6 +1,8 @@
 #include "OTAManager.h"
 #include "DataPool.h"
+#include "MqttCom.h"
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <Update.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -141,14 +143,30 @@ void otaTaskFunc(void* pvParameters) {
         status.ota_progress = 0;
         strncpy(status.ota_new_version, trigger_version, sizeof(status.ota_new_version) - 1);
         status.ota_new_version[sizeof(status.ota_new_version) - 1] = '\0';
+        otaSetStatusText("Stopping network...");
+
+        // ---- 1.5 停止所有网络活动，独占 WiFi 给 OTA TLS ----
+        mqttDisconnect();          // 断开 MQTT（含 socket 清理）
+        vTaskDelay(pdMS_TO_TICKS(500));  // 等 TCP 连接释放
         otaSetStatusText("Connecting...");
 
-        // ---- 2. HTTP 下载 + 流式写入 Flash ----
+        // ---- 2. HTTP/HTTPS 下载 ----
         HTTPClient http;
-        http.setTimeout(30000);
+        http.setTimeout(30000);  // 连接 + 响应超时
 
         Serial.printf("[OTA] 正在连接: %s\n", trigger_url);
-        bool connected = http.begin(trigger_url);
+
+        // HTTPS 需要 WiFiClientSecure
+        WiFiClientSecure secureClient;
+        bool isHttps = (strncmp(trigger_url, "https://", 8) == 0);
+
+        bool connected;
+        if (isHttps) {
+            secureClient.setInsecure();  // 跳过证书验证（竞赛环境不验证 CA）
+            connected = http.begin(secureClient, trigger_url);
+        } else {
+            connected = http.begin(trigger_url);
+        }
 
         if (!connected) {
             otaSetError("HTTP 连接失败");
@@ -171,12 +189,14 @@ void otaTaskFunc(void* pvParameters) {
         }
 
         // 获取固件大小
-        size_t totalSize = http.getSize();
-        if (totalSize <= 0) {
-            totalSize = 0x400000;  // 默认 4MB 最大值
-        }
+        int contentLen = http.getSize();
+        size_t totalSize = (contentLen > 0) ? (size_t)contentLen : 0;
 
-        Serial.printf("[OTA] 固件大小: %u 字节 (%.2f MB)\n", totalSize, totalSize / 1048576.0f);
+        if (totalSize > 0) {
+            Serial.printf("[OTA] 固件大小: %u 字节 (%.2f MB)\n", totalSize, totalSize / 1048576.0f);
+        } else {
+            Serial.println("[OTA] 固件大小未知（服务器未返回 Content-Length）");
+        }
 
         xSemaphoreTake(otaMutex, portMAX_DELAY);
         ota.total_bytes = totalSize;
@@ -185,7 +205,8 @@ void otaTaskFunc(void* pvParameters) {
 
         // ---- 3. 准备 Update（擦除 OTA 分区）----
         otaSetStatusText("Preparing flash...");
-        if (!Update.begin(totalSize, U_FLASH)) {
+        size_t updateSize = (totalSize > 0) ? totalSize : UPDATE_SIZE_UNKNOWN;
+        if (!Update.begin(updateSize, U_FLASH)) {
             otaSetError("Flash 分区擦除失败");
             otaSetStatusText("Flash error!");
             http.end();
@@ -202,30 +223,41 @@ void otaTaskFunc(void* pvParameters) {
 
         // ---- 4. 流式下载 + 写入 ----
         WiFiClient* stream = http.getStreamPtr();
-        uint8_t buffer[4096];
+        static uint8_t buffer[4096];  // 静态分配，不占栈空间
         size_t downloaded = 0;
         int lastProgress = -1;
         bool downloadOk = true;
+        uint32_t lastDataTime = millis();  // 下载超时保护
 
         xSemaphoreTake(otaMutex, portMAX_DELAY);
         ota.state = OTA_WRITING;
         xSemaphoreGive(otaMutex);
 
-        while (http.connected() && downloaded < totalSize) {
+        while (http.connected()) {
             size_t available = stream->available();
             if (available == 0) {
+                // 超时保护：30秒无数据 → 放弃
+                if (millis() - lastDataTime > 30000) {
+                    Serial.println("[OTA] ❌ 下载超时（30秒无数据）");
+                    otaSetError("Download timeout");
+                    otaSetStatusText("Timeout!");
+                    downloadOk = false;
+                    break;
+                }
                 vTaskDelay(pdMS_TO_TICKS(10));
                 continue;
             }
 
+            lastDataTime = millis();  // 有数据，重置超时计时
+
             size_t toRead = (available > sizeof(buffer)) ? sizeof(buffer) : available;
-            if (toRead > (totalSize - downloaded)) {
+            // 如果知道总大小，不要超读
+            if (totalSize > 0 && (downloaded + toRead) > totalSize) {
                 toRead = totalSize - downloaded;
             }
 
             int bytesRead = stream->readBytes(buffer, toRead);
             if (bytesRead <= 0) {
-                if (downloaded >= totalSize) break;
                 downloadOk = false;
                 break;
             }
@@ -244,14 +276,14 @@ void otaTaskFunc(void* pvParameters) {
             downloaded += bytesRead;
 
             // 更新共享进度
-            int pct = (totalSize > 0) ? (int)(downloaded * 100 / totalSize) : 0;
+            int pct = (totalSize > 0) ? (int)(downloaded * 100 / totalSize) : -1;
             xSemaphoreTake(otaMutex, portMAX_DELAY);
             ota.bytes_downloaded = downloaded;
-            ota.progress = pct;
+            ota.progress = (pct >= 0) ? pct : 0;
             xSemaphoreGive(otaMutex);
 
             // 更新 status 共享字段（LVGL 任务读取）
-            if (pct != lastProgress) {
+            if (pct != lastProgress && pct >= 0) {
                 lastProgress = pct;
                 status.ota_progress = pct;
                 char st[64];
@@ -262,6 +294,9 @@ void otaTaskFunc(void* pvParameters) {
 
             // 让出 CPU
             vTaskDelay(pdMS_TO_TICKS(5));
+
+            // 如果知道总大小且已下完，退出
+            if (totalSize > 0 && downloaded >= totalSize) break;
         }
 
         http.end();

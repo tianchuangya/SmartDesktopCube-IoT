@@ -14,8 +14,8 @@ SensorData sensorData = {
 
 // WiFi 默认配置
 WiFiConfig_t wifi_config = {
-  "tianchuang",
-  "qzl610929"
+  "your_ssid",
+  "your_password"
 };
 
 FocusConfig_t focusConfig = {

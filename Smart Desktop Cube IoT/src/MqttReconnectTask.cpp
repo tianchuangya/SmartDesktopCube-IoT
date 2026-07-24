@@ -22,17 +22,20 @@ void Task_MqttReconnect(void *pvParameters) {
     bool     handshake_sent = false;
 
     while (1) {
+        // ---- 0. OTA 期间：完全静默，不连接不收发 ----
+        if (status.ota_in_progress) {
+            if (mqttIsConnected()) mqttDisconnect();
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         // ---- 1. 等待 WiFi 就绪 ----
         if (!status.wifi_connected) {
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
         }
 
-        // ---- 1.5 Blinker 初始化 + 运行 ----
-        BlinkerApp_Init();
-        BlinkerApp_Run();
-
-        // ---- 2. MQTT 重连 ----
+        // ---- 2. MQTT 重连（优先于 Blinker，避免 Blinker HTTPS 阻塞重连）----
         if (!mqttIsConnected()) {
             if (security.token_ok) {
                 security.token_ok = false;
@@ -40,16 +43,36 @@ void Task_MqttReconnect(void *pvParameters) {
                 security.token_expire_time = 0;
                 handshake_sent = false;
             }
+            // MQTT 断开 → 立即重置 OTA 检测状态（不让 UI 卡住）
+            if (status.ota_check_status == 1) {
+                status.ota_check_status = 4;  // failed - MQTT disconnected
+                Serial.println("[OTA] MQTT 断开，版本检测已取消");
+            }
+            status.mqtt_connected = false;
             if (millis() - last_retry >= retry_interval) {
                 last_retry = millis();
+                Serial.println("[MQTT] 尝试重连...");
                 if (mqttConnect(3000)) {
                     status.mqtt_connected = true;
+                    Serial.println("[MQTT] 重连成功 ✅");
                 } else {
-                    status.mqtt_connected = false;
+                    Serial.println("[MQTT] 重连失败，5s后重试");
                 }
+            }
+            // Blinker 在 MQTT 断开时也运行（它有独立连接），但放在重连之后不阻塞
+            // OTA 期间禁止 Blinker（TLS 争抢硬件 SHA → Double exception）
+            if (!status.ota_in_progress) {
+                BlinkerApp_Init();
+                BlinkerApp_Run();
             }
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
+        }
+
+        // ---- 2.5 MQTT 已连接，运行 Blinker（OTA 期间跳过，防止 TLS 冲突）----
+        if (!status.ota_in_progress) {
+            BlinkerApp_Init();
+            BlinkerApp_Run();
         }
 
         // ---- 3. 已连接：处理收发 ----
@@ -82,8 +105,11 @@ void Task_MqttReconnect(void *pvParameters) {
         // ---- 3.5 手动检查更新请求 ----
         if (status.ota_check_requested) {
             status.ota_check_requested = false;
-            /* 正在检测中则忽略重复触发，防止连点导致重复发送 */
-            if (status.ota_check_status != 1) {
+            if (!security.token_ok) {
+                // 握手未完成/token 无效，不发请求（后端会返回401）
+                status.ota_check_status = 4;
+                Serial.println("[OTA] Token 未就绪（握手未完成），无法检测版本");
+            } else {
                 status.ota_check_status = 1;  // checking
                 status.ota_check_time = millis();
                 mqttSendVersionCheck();

@@ -42,7 +42,7 @@ void setup()
     xTaskCreatePinnedToCore(Task_Realtime_Control, "RealtimeCtrl", 8192, NULL, 3, NULL, 1);
     xTaskCreatePinnedToCore(Task_DataRead_Init,   "DataRead",    4096, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(Task_Focus_Init,       "FocusReport", 4096, NULL, 1, NULL, 1);
-    xTaskCreatePinnedToCore(otaTaskFunc,           "OTA",         8192, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(otaTaskFunc,           "OTA",         16384, NULL, 2, NULL, 1);
 
     // ===== 核心 0：网络层（WiFi + MQTT 连接/收发/心跳/上报 + Web 服务器）=====
     xTaskCreatePinnedToCore(Task_Network_Init,     "WiFi",        4096, NULL, 1, NULL, 0);

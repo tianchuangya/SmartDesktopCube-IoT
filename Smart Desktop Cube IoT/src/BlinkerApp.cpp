@@ -33,7 +33,7 @@
 #include <ArduinoJson.h>
 
 // ==================== 用户配置 ====================
-#define BLINKER_AUTH "2fc34ccb327a"
+#define BLINKER_AUTH "your_blinker_auth_key"
 
 // ==================== Blinker 凭证（认证后填充）====================
 static String b_host;
