@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# 敏感配置文件（含 WiFi 密码和 API Key）
+secrets.h
+
 # Compiled Object files
 *.slo
 *.lo

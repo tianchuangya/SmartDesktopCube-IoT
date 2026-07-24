@@ -1,4 +1,5 @@
 #include "DataPool.h"
+#include "secrets.h"
 
 // 全局数据池初始化
 SensorData sensorData = {
@@ -14,8 +15,8 @@ SensorData sensorData = {
 
 // WiFi 默认配置
 WiFiConfig_t wifi_config = {
-  "your_ssid",
-  "your_password"
+  WIFI_DEFAULT_SSID,
+  WIFI_DEFAULT_PWD
 };
 
 FocusConfig_t focusConfig = {

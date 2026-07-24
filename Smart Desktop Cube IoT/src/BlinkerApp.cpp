@@ -26,14 +26,15 @@
  */
 #include "BlinkerApp.h"
 #include "DataPool.h"
+#include "secrets.h"
 #include "WiFiManager.h"
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// ==================== 用户配置 ====================
-#define BLINKER_AUTH "your_blinker_auth_key"
+// ==================== 用户配置（从 secrets.h 读取）====================
+#define BLINKER_AUTH BLINKER_AUTH_KEY
 
 // ==================== Blinker 凭证（认证后填充）====================
 static String b_host;

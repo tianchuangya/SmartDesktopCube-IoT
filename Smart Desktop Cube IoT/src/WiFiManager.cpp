@@ -21,6 +21,9 @@ static const char* NVS_NAMESPACE = "wifi_cfg";
 static DNSServer dnsServer;
 static bool dns_started = false;
 
+// WiFi 连接失败计数（文件级，供 ConnectTo 重置）
+static int wifi_fail_count = 0;
+
 // ==================== NVS 读写 ====================
 static void nvsLoadWifi() {
     prefs.begin(NVS_NAMESPACE, true);  // 只读
@@ -116,13 +119,20 @@ void WiFiManager_Connect(void) {
     // 已经连上了
     if (status_wifi == WL_CONNECTED) {
         status.wifi_connected = true;
+        wifi_fail_count = 0;  // 连接成功，重置失败计数
         if (!time_synced) syncTimeOnce();
+        return;
+    }
+
+    // 连续失败 3 次 → 停止重试，释放射频给扫描和 AP
+    if (wifi_fail_count >= 3) {
+        status.wifi_connected = false;
         return;
     }
 
     // === 未连接：尝试连接 ===
     if (!wifi_started || (millis() - wifi_begin_time > 15000)) {
-        Serial.printf("[WiFi] 开始连接: %s ...\n", wifi_config.ssid);
+        Serial.printf("[WiFi] 开始连接: %s (尝试 %d/3) ...\n", wifi_config.ssid, wifi_fail_count + 1);
         WiFi.disconnect();
         delay(100);
         WiFi.begin(wifi_config.ssid, wifi_config.pwd);
@@ -150,10 +160,15 @@ void WiFiManager_Connect(void) {
         }
     }
 
-    // 明确失败 → 允许重试
+    // 明确失败 → 计数 +1
     if (status_wifi == WL_CONNECT_FAILED || status_wifi == WL_NO_SSID_AVAIL) {
         if (millis() - wifi_begin_time > 5000) {
+            wifi_fail_count++;
             wifi_started = false;
+            if (wifi_fail_count >= 3) {
+                Serial.println("[WiFi] ⚠ 连续 3 次失败，停止重试（请通过网页配网）");
+                WiFi.disconnect(false);  // 释放射频
+            }
         }
     }
 
@@ -162,12 +177,15 @@ void WiFiManager_Connect(void) {
 
 // ==================== WiFi 扫描 ====================
 String WiFiManager_Scan(void) {
+    // 临时断开 STA，释放射频给扫描（AP 不受影响）
+    WiFi.disconnect(false);
+    delay(100);
+
     int n = WiFi.scanNetworks(false, false, false, 300);
     JsonDocument doc;
     JsonArray arr = doc["networks"].to<JsonArray>();
 
     for (int i = 0; i < n; i++) {
-        // 跳过隐藏 SSID 和重复
         if (WiFi.SSID(i).length() == 0) continue;
 
         JsonObject net = arr.add<JsonObject>();
@@ -178,6 +196,9 @@ String WiFiManager_Scan(void) {
 
     WiFi.scanDelete();
 
+    // 恢复 STA 连接（WiFi 任务会自动继续重连）
+    WiFi.begin(wifi_config.ssid, wifi_config.pwd);
+
     String result;
     serializeJson(doc, result);
     return result;
@@ -186,6 +207,9 @@ String WiFiManager_Scan(void) {
 // ==================== 连接新 WiFi ====================
 bool WiFiManager_ConnectTo(const char* ssid, const char* password) {
     if (strlen(ssid) == 0 || strlen(ssid) >= sizeof(wifi_config.ssid)) return false;
+
+    // 重置失败计数，允许 WiFi 任务恢复正常重试
+    wifi_fail_count = 0;
 
     // 保存到 NVS（重启后自动连接）
     nvsSaveWifi(ssid, password);
