@@ -156,7 +156,9 @@ void DataRead_ReadAll(void)
     }
 
     // ==================== PM2.5 预测（4特征: 温度/CO2/TVOC/湿度）====================
-    if (status.sensor_aht21 && status.sensor_ens160) {
+    if (status.sensor_aht21 && status.sensor_ens160 &&
+        sensorData.temp >= 0 && sensorData.eco2 >= 0 &&
+        sensorData.tvoc >= 0 && sensorData.humi >= 0) {
         sensorData.pm25 = pm25Predict(sensorData.temp, sensorData.eco2,
                                       sensorData.tvoc, sensorData.humi);
     } else {

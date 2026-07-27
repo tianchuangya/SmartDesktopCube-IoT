@@ -1,5 +1,6 @@
 #include "WebServerTask.h"
 #include "LocalIntelligence.h"
+#include "focus_mode.h"
 #include "OTAManager.h"
 #include "WiFiManager.h"
 #include "DataPool.h"
@@ -126,7 +127,7 @@ static void handleRoot() {
                 document.getElementById('humi').textContent = d.humi.toFixed(0)+' %';
                 document.getElementById('light').textContent = d.light.toFixed(0)+' lx';
                 document.getElementById('eco2').textContent = d.eco2.toFixed(0)+' ppm';
-                document.getElementById('tvoc').textContent = d.tvoc.toFixed(2)+' mg/m³';
+                document.getElementById('tvoc').textContent = d.tvoc.toFixed(0)+' ppb';
                 document.getElementById('pm25').textContent = d.pm25.toFixed(0)+' µg/m³';
                 document.getElementById('human').textContent = d.human_exist?'有人':'无人';
                 document.getElementById('aqi').textContent = d.aqi;
@@ -260,19 +261,23 @@ static void handleRoot() {
         function connectWifi(){
             var ssid=document.getElementById('wifi-select').value;
             var pwd=document.getElementById('wifi-pwd').value;
-            if(!ssid){alert('请先选择 WiFi');return;}
+            if(!ssid){alert('请选择 WiFi');return;}
             var res=document.getElementById('wifi-result');
             res.style.display='block';
-            res.innerHTML='<div class="status warn">正在连接 '+ssid+' ...</div>';
+            res.textContent='';
+            var d1=document.createElement('div');d1.className='status warn';d1.textContent='正在连接 '+ssid+' ...';res.appendChild(d1);
             fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ssid,password:pwd})})
             .then(r=>r.json()).then(d=>{
+                res.textContent='';
+                var d2=document.createElement('div');
                 if(d.success){
-                    res.innerHTML='<div class="status ok">✅ 已连接 '+ssid+'，IP: '+d.ip+'</div>';
+                    d2.className='status ok';d2.textContent='已连接 '+ssid+'，IP: '+d.ip;
                 }else{
-                    res.innerHTML='<div class="status warn">❌ 连接失败：'+d.msg+'</div>';
+                    d2.className='status warn';d2.textContent='连接失败：'+d.msg;
                 }
+                res.appendChild(d2);
                 setTimeout(updateData,1000);
-            }).catch(function(){res.innerHTML='<div class="status warn">请求失败</div>';});
+            }).catch(function(){res.textContent='';var d3=document.createElement('div');d3.className='status warn';d3.textContent='请求失败';res.appendChild(d3);});
         }
         setInterval(updateData,2000);
         updateData();
@@ -375,15 +380,16 @@ static void handleApiControl() {
     }
     
     const char* command = doc["command"];
-    const char* value = doc["value"];
-    
+    const char* value = doc["value"] | "";
+
     if (!command) {
         webServer.send(400, "application/json", "{\"error\":\"No command\"}");
         return;
     }
-    
+
     // 处理控制指令
     if (strcmp(command, "focus") == 0) {
+        bool was_focus = status.focus_mode;
         if (strcmp(value, "toggle") == 0) {
             status.focus_mode = !status.focus_mode;
             status.request_focus_screen = status.focus_mode;
@@ -392,6 +398,14 @@ static void handleApiControl() {
             status.request_focus_screen = true;
         } else if (strcmp(value, "off") == 0) {
             status.focus_mode = false;
+        }
+        // 专注会话生命周期管理
+        if (!was_focus && status.focus_mode) {
+            sensorData.focus_duration = 0;
+            focusMode_notifyManualEnter();  // 开始环境数据记录
+        } else if (was_focus && !status.focus_mode) {
+            FocusSession_End();             // 生成总结 + 触发弹窗
+            sensorData.focus_duration = 0;
         }
         setToast(status.focus_mode ? "Focus ON" : "Focus OFF");
     }

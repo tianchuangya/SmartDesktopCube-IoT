@@ -12,6 +12,7 @@ static uint32_t wifi_begin_time = 0;
 static uint32_t last_status_print = 0;
 static uint32_t last_ntp_try = 0;
 static bool ap_started = false;
+static uint32_t last_long_retry = 0;   // 长时间重试计时器（3次失败后每60秒重试一次）
 
 // NVS 存储
 static Preferences prefs;
@@ -124,9 +125,15 @@ void WiFiManager_Connect(void) {
         return;
     }
 
-    // 连续失败 3 次 → 停止重试，释放射频给扫描和 AP
+    // 连续失败 3 次 → 降低重试频率（每 30 秒重试一次），不永久放弃
     if (wifi_fail_count >= 3) {
         status.wifi_connected = false;
+        if (last_long_retry == 0 || millis() - last_long_retry >= 30000) {
+            last_long_retry = millis();
+            wifi_fail_count = 0;    // 重置计数，允许新一轮 3 次快速重试
+            wifi_started = false;
+            Serial.println("[WiFi] 30s 定时重试...");
+        }
         return;
     }
 
@@ -166,8 +173,8 @@ void WiFiManager_Connect(void) {
             wifi_fail_count++;
             wifi_started = false;
             if (wifi_fail_count >= 3) {
-                Serial.println("[WiFi] ⚠ 连续 3 次失败，停止重试（请通过网页配网）");
-                WiFi.disconnect(false);  // 释放射频
+                Serial.println("[WiFi] ⚠ 连续 3 次失败，30s 后自动重试");
+                WiFi.disconnect(false);  // 释放射频给 AP 和扫描
             }
         }
     }

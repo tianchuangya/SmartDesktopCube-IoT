@@ -5,10 +5,12 @@
 #include <Arduino.h>
 #include <time.h>
 #include <string.h>
+#include "esp_heap_caps.h"
 #include "lvgl.h"
 #include "custom.h"
 #include "../../DataPool.h"
 #include "../../focus_mode.h"
+#include "../../LocalIntelligence.h"
 #include "../../OTAScreen.h"
 
 /* ---- 引入已生成的角色图片 ---- */
@@ -43,6 +45,13 @@ static void show_toast(const char *msg)
         toast_obj = NULL;
     }
 
+    /* 确定显示时长：优先使用自定义时长，否则默认 2500ms */
+    uint32_t duration = TOAST_DURATION_MS;
+    if (status.toast_duration_ms > 0) {
+        duration = status.toast_duration_ms;
+        status.toast_duration_ms = 0;  /* 一次性使用，恢复默认 */
+    }
+
     lv_obj_t *scr = lv_scr_act();
     toast_obj = lv_label_create(scr);
     lv_label_set_text(toast_obj, msg);
@@ -53,14 +62,128 @@ static void show_toast(const char *msg)
     lv_obj_set_style_radius(toast_obj, 12, LV_PART_MAIN);
     lv_obj_set_style_pad_hor(toast_obj, 16, LV_PART_MAIN);
     lv_obj_set_style_pad_ver(toast_obj, 10, LV_PART_MAIN);
+    lv_obj_set_width(toast_obj, 280);
+    lv_label_set_long_mode(toast_obj, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(toast_obj, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_align(toast_obj, LV_ALIGN_TOP_MID, 0, 8);  /* 顶部弹窗 */
     lv_obj_clear_flag(toast_obj, LV_OBJ_FLAG_CLICKABLE);
 
     toast_created_ms = millis();
 
-    /* 2.5秒后自动删除 */
-    lv_timer_t *t = lv_timer_create(toast_delete_cb, TOAST_DURATION_MS, NULL);
+    /* 定时自动删除 */
+    lv_timer_t *t = lv_timer_create(toast_delete_cb, duration, NULL);
     lv_timer_set_repeat_count(t, 1);
+}
+
+/* ---- 专注总结面板（半透明遮罩 + 统计数据 + 倒计时）---- */
+#define FOCUS_SUMMARY_DURATION_MS 10000
+#define FOCUS_SUMMARY_COUNTDOWN_S 10
+
+LV_FONT_DECLARE(lv_font_montserratMedium_12)
+
+static lv_obj_t    *focus_summary_panel   = NULL;
+static lv_obj_t    *focus_countdown_label = NULL;
+static lv_timer_t  *s_countdown_timer     = NULL;
+static lv_timer_t  *s_delete_timer        = NULL;
+static int          s_countdown_remaining = FOCUS_SUMMARY_COUNTDOWN_S;
+
+/* 每秒倒计时更新 */
+static void focus_summary_countdown_cb(lv_timer_t *t)
+{
+    if (focus_countdown_label && lv_obj_is_valid(focus_countdown_label)) {
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%ds", s_countdown_remaining);
+        lv_label_set_text(focus_countdown_label, buf);
+    }
+
+    s_countdown_remaining--;
+    if (s_countdown_remaining < 0) {
+        /* 由 delete timer 统一清理，这里只停掉自己 */
+        lv_timer_del(t);
+        s_countdown_timer = NULL;
+    }
+}
+
+/* 10 秒后删除面板 */
+static void focus_summary_delete_cb(lv_timer_t *t)
+{
+    if (s_countdown_timer) {
+        lv_timer_del(s_countdown_timer);
+        s_countdown_timer = NULL;
+    }
+    if (focus_summary_panel) {
+        lv_obj_del(focus_summary_panel);
+        focus_summary_panel = NULL;
+        focus_countdown_label = NULL;  /* 已随面板删除 */
+    }
+    s_delete_timer = NULL;
+    lv_timer_del(t);
+}
+
+void show_focus_summary_panel(const char *summary_text)
+{
+    /* 清理旧面板 + 旧定时器 */
+    if (s_countdown_timer) {
+        lv_timer_del(s_countdown_timer);
+        s_countdown_timer = NULL;
+    }
+    if (s_delete_timer) {
+        lv_timer_del(s_delete_timer);
+        s_delete_timer = NULL;
+    }
+    if (focus_summary_panel) {
+        lv_obj_del(focus_summary_panel);
+        focus_summary_panel = NULL;
+    }
+    focus_countdown_label = NULL;
+    s_countdown_remaining = FOCUS_SUMMARY_COUNTDOWN_S;
+
+    lv_obj_t *scr = lv_scr_act();
+
+    /* 半透明面板 */
+    focus_summary_panel = lv_obj_create(scr);
+    lv_obj_set_size(focus_summary_panel, 280, 170);
+    lv_obj_align(focus_summary_panel, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(focus_summary_panel, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(focus_summary_panel, 200, LV_PART_MAIN);
+    lv_obj_set_style_radius(focus_summary_panel, 16, LV_PART_MAIN);
+    lv_obj_set_style_border_width(focus_summary_panel, 1, LV_PART_MAIN);
+    lv_obj_set_style_border_color(focus_summary_panel, lv_color_hex(0x444444), LV_PART_MAIN);
+    lv_obj_set_style_border_opa(focus_summary_panel, 150, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(focus_summary_panel, 12, LV_PART_MAIN);
+    lv_obj_clear_flag(focus_summary_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(focus_summary_panel, LV_OBJ_FLAG_CLICKABLE);
+
+    /* 标题 */
+    lv_obj_t *title = lv_label_create(focus_summary_panel);
+    lv_label_set_text(title, "Focus Complete");
+    lv_obj_set_style_text_color(title, lv_color_hex(0x4ADE80), LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &lv_font_montserratMedium_18, LV_PART_MAIN);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+    /* 统计数据 */
+    lv_obj_t *body = lv_label_create(focus_summary_panel);
+    lv_label_set_text(body, summary_text);
+    lv_obj_set_style_text_color(body, lv_color_hex(0xDDDDDD), LV_PART_MAIN);
+    lv_obj_set_style_text_font(body, &lv_font_montserratMedium_16, LV_PART_MAIN);
+    lv_obj_set_width(body, 240);
+    lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(body, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 28);
+
+    /* 倒计时标签 */
+    focus_countdown_label = lv_label_create(focus_summary_panel);
+    lv_label_set_text(focus_countdown_label, "10s");
+    lv_obj_set_style_text_color(focus_countdown_label, lv_color_hex(0x999999), LV_PART_MAIN);
+    lv_obj_set_style_text_font(focus_countdown_label, &lv_font_montserratMedium_12, LV_PART_MAIN);
+    lv_obj_align(focus_countdown_label, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+    /* 每秒更新倒计时 */
+    s_countdown_timer = lv_timer_create(focus_summary_countdown_cb, 1000, NULL);
+
+    /* 10 秒后自动消失 */
+    s_delete_timer = lv_timer_create(focus_summary_delete_cb, FOCUS_SUMMARY_DURATION_MS, NULL);
+    lv_timer_set_repeat_count(s_delete_timer, 1);
 }
 
 static bool label_valid(lv_obj_t *label)
@@ -148,10 +271,33 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
     (void)timer;
     if (!gui_ui) return;
 
+    /* ---- 堆内存监控（每 30 秒打印一次，诊断内存泄漏）---- */
+    static uint32_t last_heap_print = 0;
+    if (millis() - last_heap_print >= 30000) {
+        last_heap_print = millis();
+        printf("[Heap] free=%u, min_free=%u, max_alloc=%u, psram_free=%u\n",
+               (unsigned)esp_get_free_heap_size(),
+               (unsigned)esp_get_minimum_free_heap_size(),
+               (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT),
+               (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    }
+
     /* ---- 跨核 Toast：WebServer(Core0) 设置标志，LVGL(Core1) 显示 ---- */
     if (status.toast_pending) {
         status.toast_pending = false;
+        __asm__ __volatile__ ("" ::: "memory");  /* 编译器屏障：确保先读 flag 再读 text */
         show_toast(status.pending_toast);
+    }
+
+    /* ---- 专注总结面板：先切回主屏幕再弹窗 ---- */
+    if (status.focus_summary_pending) {
+        status.focus_summary_pending = false;
+        __asm__ __volatile__ ("" ::: "memory");
+        /* 如果还在专注屏幕，先切回主屏幕 */
+        if (lv_scr_act() == gui_ui->fouseScreen && gui_ui->mainScreen) {
+            lv_scr_load_anim(gui_ui->mainScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+        }
+        show_focus_summary_panel(status.focus_summary_text);
     }
 
     /* ---- 启动画面：实时显示模块加载进度文字 ---- */
@@ -211,13 +357,16 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         if (active != gui_ui->fouseScreen && gui_ui->fouseScreen) {
             lv_scr_load_anim(gui_ui->fouseScreen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
             active = lv_scr_act();
-            /* 确保计时器启动 & 防止自动退出立即生效 */
-            focusMode_notifyManualEnter();
+            /* 远程/自动进入时，MQTT/Web 已调用 FocusSession_Start；仅在会话未激活时启动 */
+            if (!focusSession.active) {
+                focusMode_notifyManualEnter();
+            }
         }
     }
 
     /* 远程/网页退出专注：focus_mode 已被外部清除，但屏幕仍停留在专注页 → 返回主界面 */
     if (active == gui_ui->fouseScreen && last_active == gui_ui->fouseScreen && !status.focus_mode) {
+        FocusSession_End();            // 确保远程退出也生成总结
         sensorData.focus_duration = 0;
         focusMode_notifyManualExit();
         if (gui_ui->mainScreen) {
@@ -258,27 +407,33 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         }
 
         /* 温度（带单位） */
-        snprintf(buf, sizeof(buf), "%.1f C", sensorData.temp);
+        if (sensorData.temp >= 0) snprintf(buf, sizeof(buf), "%.1f C", sensorData.temp);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_temp_val, buf);
 
         /* 湿度（带单位） */
-        snprintf(buf, sizeof(buf), "%.0f %%", sensorData.humi);
+        if (sensorData.humi >= 0) snprintf(buf, sizeof(buf), "%.0f %%", sensorData.humi);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_humi_val, buf);
 
         /* 光照（带单位） */
-        snprintf(buf, sizeof(buf), "%.0f lx", sensorData.light);
+        if (sensorData.light >= 0) snprintf(buf, sizeof(buf), "%.0f lx", sensorData.light);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_light_val, buf);
 
         /* CO2（带单位） */
-        snprintf(buf, sizeof(buf), "%.0f ppm", sensorData.eco2);
+        if (sensorData.eco2 >= 0) snprintf(buf, sizeof(buf), "%.0f ppm", sensorData.eco2);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_co2_val, buf);
 
         /* TVOC */
-        snprintf(buf, sizeof(buf), "%.2f", sensorData.tvoc);
+        if (sensorData.tvoc >= 0) snprintf(buf, sizeof(buf), "%.0f ppb", sensorData.tvoc);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_tvoc_val, buf);
 
         /* PM2.5（带单位） */
-        snprintf(buf, sizeof(buf), "%.0f ug/m3", sensorData.pm25);
+        if (sensorData.pm25 >= 0) snprintf(buf, sizeof(buf), "%.0f ug/m3", sensorData.pm25);
+        else snprintf(buf, sizeof(buf), "--");
         safe_label_set(gui_ui->mainScreen_label_pm25_val, buf);
 
         /* 人体存在 */
@@ -350,7 +505,15 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         } else if (sensorData.aqi > 100) {
             advice = "Air poor, close window";
         }
-        safe_label_set(gui_ui->fouseScreen_label_status, advice);
+
+        /* 拼接 CO2 趋势预测 */
+        char advice_buf[128];
+        if (status.co2_trend_text[0] != '\0') {
+            snprintf(advice_buf, sizeof(advice_buf), "%s\n%s", advice, status.co2_trend_text);
+        } else {
+            snprintf(advice_buf, sizeof(advice_buf), "%s", advice);
+        }
+        safe_label_set(gui_ui->fouseScreen_label_status, advice_buf);
     }
 
     // ========== settingsScreen ==========
@@ -383,9 +546,10 @@ void custom_init(lv_ui *ui)
     }
 
     if (ui->fouseScreen_label_status) {
-        lv_obj_set_size(ui->fouseScreen_label_status, 240, 40);
+        lv_obj_set_size(ui->fouseScreen_label_status, 240, 64);
         lv_obj_set_pos(ui->fouseScreen_label_status, 40, 150);
         lv_obj_set_style_text_align(ui->fouseScreen_label_status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_label_set_long_mode(ui->fouseScreen_label_status, LV_LABEL_LONG_WRAP);
     }
 
     printf("[custom_init] role images wired, labels fixed, new mainScreen layout active\n");

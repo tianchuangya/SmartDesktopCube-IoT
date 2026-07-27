@@ -17,6 +17,7 @@ extern "C" {
 
 void custom_init(lv_ui *ui);
 void Task_LVGL(void *pvParameters);
+void show_focus_summary_panel(const char *summary_text);
 #ifdef __cplusplus
 }
 #endif

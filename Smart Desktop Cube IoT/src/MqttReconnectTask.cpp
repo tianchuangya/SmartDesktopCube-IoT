@@ -2,7 +2,41 @@
 #include "MqttCom.h"
 #include "DataPool.h"
 #include "BlinkerApp.h"
+#include "ControlPoll.h"
 #include <time.h>
+#include "esp_heap_caps.h"
+
+/*
+ * 堆碎片整理：每 2 分钟执行一次
+ * 通过大块分配→缩小→释放，触发 ESP-IDF 分配器的空闲块合并
+ */
+static void heap_defrag(void) {
+    static uint32_t last_defrag = 0;
+    uint32_t now = millis();
+    if (now - last_defrag < 120000) return;
+    last_defrag = now;
+
+    uint32_t before = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+
+    // 从大到小尝试 realloc，迫使分配器移动块并合并空闲空间
+    for (size_t sz = 16384; sz >= 512; sz >>= 1) {
+        void *p = malloc(sz);
+        if (p) {
+            void *q = realloc(p, 64);
+            if (q) {
+                free(q);
+            } else {
+                free(p);
+            }
+        }
+    }
+
+    uint32_t after = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    if (after > before) {
+        Serial.printf("[Heap] defrag: max_alloc %u -> %u (+%u)\n",
+                      before, after, after - before);
+    }
+}
 
 /*
  * Core 0 统一 MQTT 任务：连接管理 + 收发消息 + 心跳 + 数据上报
@@ -20,6 +54,9 @@ void Task_MqttReconnect(void *pvParameters) {
     uint32_t last_alarm = 0;
     uint32_t last_handshake = 0;
     bool     handshake_sent = false;
+
+    // 初始化 HTTP 控制轮询
+    ControlPoll_Init();
 
     while (1) {
         // ---- 0. OTA 期间：完全静默，不连接不收发 ----
@@ -85,7 +122,7 @@ void Task_MqttReconnect(void *pvParameters) {
             continue;
         }
 
-        if (!handshake_sent && now - last_handshake >= 5000) {
+        if (!handshake_sent && status.time_synced && now - last_handshake >= 5000) {
             mqttSendHandshake();
             handshake_sent = true;
             last_handshake = now;
@@ -93,7 +130,8 @@ void Task_MqttReconnect(void *pvParameters) {
         if (!security.token_ok) {
             handshake_sent = false;
         }
-        if (security.token_ok && security.token_expire_time > 0 && time(NULL) > security.token_expire_time) {
+        // Token 过期检查：仅在 NTP 已同步后才有意义（避免 epoch≈0 时误判过期）
+        if (status.time_synced && security.token_ok && security.token_expire_time > 0 && time(NULL) > security.token_expire_time) {
             security.token_ok = false;
             security.token[0] = '\0';
             security.token_expire_time = 0;
@@ -134,16 +172,16 @@ void Task_MqttReconnect(void *pvParameters) {
             }
         }
 
-        // 2秒数据上报
-        if (now - last_report >= 2000) {
+        // 1秒数据上报
+        if (now - last_report >= 1000) {
             last_report = now;
             if (security.token_ok) {
                 mqttSendDataReport();
             }
         }
 
-        // 2秒推送数据到 Blinker App（独立于 MQTT）
-        if (now - last_blinker >= 2000) {
+        // 1秒推送数据到 Blinker App（独立于 MQTT）
+        if (now - last_blinker >= 1000) {
             last_blinker = now;
             BlinkerApp_SendAll();
         }
@@ -153,6 +191,12 @@ void Task_MqttReconnect(void *pvParameters) {
             last_alarm = now;
             BlinkerApp_CheckAlarms();
         }
+
+        // HTTP 控制轮询（内部 3 秒间隔，拉取后端控制队列指令）
+        ControlPoll_Check();
+
+        // 定期堆碎片整理
+        heap_defrag();
 
         vTaskDelay(pdMS_TO_TICKS(50));
     }

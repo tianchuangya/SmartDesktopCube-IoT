@@ -17,6 +17,10 @@ void RecordHistory(void);
 int GetHistoryCount(void);
 void GetHistoryData(float* temp, float* humi, float* light, float* eco2, int max_count);
 
+// 专注会话生命周期（由 focus_mode.cpp 在进入/退出专注时调用）
+void FocusSession_Start(void);   // 进入专注 → 开始环境记录
+void FocusSession_End(void);     // 退出专注 → 生成总结 + 触发弹窗
+
 #ifdef __cplusplus
 }
 #endif

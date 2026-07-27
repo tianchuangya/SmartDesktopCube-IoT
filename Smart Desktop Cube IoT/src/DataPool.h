@@ -76,13 +76,18 @@ typedef struct {
   char ota_pending_version[32]; // 待确认的新版本号
   char ota_pending_md5[33];   // 待确认的 MD5
   // ---- 本地智能决策 ----
-  bool air_quality_alert;     // 空气质量告警（CO2>1000 或 TVOC>0.5）
+  bool air_quality_alert;     // 空气质量告警（CO2>1000ppm 或 TVOC>500ppb）
   bool temp_comfort_alert;    // 温度舒适度告警（<18°C 或 >28°C）
   bool auto_brightness_enabled; // 是否启用自动亮度调节
   bool silent_mode;           // 免打扰模式（夜间不告警）
   // ---- Web→TFT 弹窗通知 ----
-  char pending_toast[48];     // 待显示的弹窗文字
+  char pending_toast[96];     // 待显示的弹窗文字
   volatile bool toast_pending; // 是否有待显示弹窗
+  uint16_t toast_duration_ms;  // toast 显示时长（0=默认2500ms）
+  // ---- 专注总结弹窗 ----
+  char focus_summary_text[160]; // 专注会话总结文本
+  volatile bool focus_summary_pending; // UI 需要显示专注总结
+  char co2_trend_text[48];      // CO2 趋势预测文本（供专注页面显示）
   // ---- 启动模块加载 ----
   bool modules_ready;         // 所有模块初始化完成
   char boot_status_text[32];  // 启动状态文字（供LVGL任务显示）
@@ -174,13 +179,27 @@ typedef struct {
 } ImagePool_t;
 
 
+// 专注会话记录（进入→退出期间的环境数据统计）
+typedef struct {
+    uint32_t start_time;          // 进入专注的时间戳（millis）
+    uint32_t duration_sec;        // 退出时记录的总时长（秒）
+    float temp_sum;               // 温度累积（用于计算均值）
+    float humi_sum;               // 湿度累积
+    float eco2_sum;               // CO2 累积
+    uint16_t sample_count;        // 采样次数
+    uint32_t last_break_suggest;  // 上次休息建议时间（冷却用）
+    uint8_t  quality_score;       // 专注质量评分（0-100）
+    bool active;                  // 是否正在记录
+} FocusSession_t;
+
 // 全局数据池实例声明（外部可访问）
 extern SensorData sensorData;
 extern WiFiConfig_t  wifi_config;
 extern DeviceStatus status;
 extern CommandData cmd;
 extern SecurityData security;
-extern ImagePool_t    img; 
+extern ImagePool_t    img;
 extern FocusConfig_t focusConfig;
 extern SensorHistory sensorHistory;
+extern FocusSession_t focusSession;
 #endif 

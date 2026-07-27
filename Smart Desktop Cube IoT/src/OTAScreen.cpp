@@ -19,6 +19,13 @@ static char last_status[64] = "";
 void otaScreenShow(const char* currentVer, const char* newVer) {
     lv_ui* ui = &guider_ui;
 
+    // 安全保护：如果旧覆盖层仍存在，先清理（防止内存泄漏）
+    if (ota_overlay) {
+        lv_obj_del(ota_overlay);
+        ota_overlay = NULL;
+        ota_bar = ota_label_ver = ota_label_warn = ota_label_prog = ota_label_stat = NULL;
+    }
+
     // 如果 lockScreen 还没创建，先创建
     if (!ui->lockScreen) {
         setup_scr_lockScreen(ui);

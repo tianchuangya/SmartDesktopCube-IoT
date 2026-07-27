@@ -3,12 +3,12 @@
 
 // 全局数据池初始化
 SensorData sensorData = {
-  .temp = 0.0f,
-  .humi = 0.0f,
-  .tvoc = 0.0f,
-  .eco2 = 0.0f,
-  .light = 0.0f,
-  .pm25 = 0.0f,
+  .temp = -1.0f,
+  .humi = -1.0f,
+  .tvoc = -1.0f,
+  .eco2 = -1.0f,
+  .light = -1.0f,
+  .pm25 = -1.0f,
   .aqi = 0,
   .human_duration = 0
 };
@@ -63,6 +63,10 @@ DeviceStatus status = {
   .silent_mode=false,
   .pending_toast={0},
   .toast_pending=false,
+  .toast_duration_ms=0,
+  .focus_summary_text={0},
+  .focus_summary_pending=false,
+  .co2_trend_text={0},
   .modules_ready=false,
   .boot_status_text={0}
 };
@@ -147,4 +151,17 @@ SensorHistory sensorHistory = {
     .eco2 = {0},
     .history_index = 0,
     .history_count = 0
+};
+
+// 专注会话记录初始化
+FocusSession_t focusSession = {
+    .start_time = 0,
+    .duration_sec = 0,
+    .temp_sum = 0.0f,
+    .humi_sum = 0.0f,
+    .eco2_sum = 0.0f,
+    .sample_count = 0,
+    .last_break_suggest = 0,
+    .quality_score = 0,
+    .active = false
 };

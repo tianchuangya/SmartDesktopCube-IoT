@@ -168,13 +168,19 @@ void Device_InitModules(void)
 
     // ========= LD2410B 雷达（5次重试）=========
     strncpy(status.boot_status_text, "Radar LD2410...", sizeof(status.boot_status_text)-1);
-    bool radar_ok = false;
     for (int retry = 0; retry < 5; retry++) {
-        radar_init();
-        radar_ok = true;  // radar_init 内部处理连接
-        break;
+        radar_init();   // 内部设置全局 radar_ok
+        if (radar_ok) break;
+        Serial.printf("Radar retry (%d/5)\n", retry + 1);
+        delay(500);
     }
     Serial.printf("Radar: %s\n", radar_ok ? "OK" : "FAIL");
+
+    // ========= 启动超时保护：30 秒内必须完成，否则强制进入主界面 =========
+    uint32_t init_elapsed = millis() - status.boot_time;
+    if (init_elapsed > 30000) {
+        Serial.printf("[Init] ⚠ Timeout after %lums, forcing ready\n", init_elapsed);
+    }
 
     // ========= 全部完成 =========
     strncpy(status.boot_status_text, "Ready!", sizeof(status.boot_status_text)-1);

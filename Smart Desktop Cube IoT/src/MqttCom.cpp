@@ -1,6 +1,8 @@
 #include "MqttCom.h"
 #include "DataPool.h"
 #include "OTAManager.h"
+#include "LocalIntelligence.h"
+#include "focus_mode.h"
 #include <ArduinoJson.h>
 #include "time.h"
 #include <WiFi.h>
@@ -90,8 +92,11 @@ static void mqttCallback(char* topic, byte* payload, unsigned int len) {
                 if (new_focus) {
                     sensorData.focus_duration = 0;
                     status.request_focus_screen = true;
+                    focusMode_notifyManualEnter();  // 开始环境数据记录 + 禁止自动退出
                     Serial.println("[MQTT] 远程开启专注模式");
                 } else {
+                    FocusSession_End();             // 生成总结 + 触发弹窗
+                    sensorData.focus_duration = 0;
                     Serial.println("[MQTT] 远程关闭专注模式");
                 }
             }
@@ -233,20 +238,16 @@ bool mqttSendHandshake() {
 }
 
 void mqttSendHeartbeat() {
-    JsonDocument doc;
-    doc["device_id"] = security.did;
-    doc["token"] = security.token;
-    doc["timestamp"] = time(NULL);
-    doc["type"] = "heartbeat";
-
-    doc["status"]["wifi_connected"] = status.wifi_connected;
-    doc["status"]["mqtt_connected"] = mqttIsConnected();
-    doc["status"]["screen_normal"] = true;
-    doc["status"]["sensor_normal"] = (status.sensor_bh1750 && status.sensor_aht21 && status.sensor_ens160);
-    doc["status"]["focus_mode"] = status.focus_mode;
-
-    char json[512];
-    serializeJson(doc, json);
+    static char json[512];  // 静态缓冲区，零堆分配
+    snprintf(json, sizeof(json),
+        "{\"device_id\":\"%s\",\"token\":\"%s\",\"timestamp\":%ld,\"type\":\"heartbeat\","
+        "\"status\":{\"wifi_connected\":%s,\"mqtt_connected\":%s,\"screen_normal\":true,"
+        "\"sensor_normal\":%s,\"focus_mode\":%s}}",
+        security.did, security.token, (long)time(NULL),
+        status.wifi_connected ? "true" : "false",
+        mqttIsConnected() ? "true" : "false",
+        (status.sensor_bh1750 && status.sensor_aht21 && status.sensor_ens160) ? "true" : "false",
+        status.focus_mode ? "true" : "false");
     mqttPublish(topic_status, json);
 }
 
@@ -265,28 +266,18 @@ void mqttSendVersionCheck() {
 }
 
 void mqttSendDataReport() {
-    JsonDocument doc;
-    doc["device_id"] = security.did;
-    doc["token"] = security.token;
-    doc["timestamp"] = time(NULL);
-    doc["type"] = "data_report";
-
-    doc["data"]["temperature"] = sensorData.temp;
-    doc["data"]["humidity"] = sensorData.humi;
-    doc["data"]["illuminance"] = sensorData.light;
-    doc["data"]["aqi"] = sensorData.aqi;
-    doc["data"]["tvoc"] = sensorData.tvoc;
-    doc["data"]["eco2"] = sensorData.eco2;
-    doc["data"]["pm25"] = sensorData.pm25;  // AI 预测 PM2.5
-    doc["data"]["mold_risk"] = 0;
-    doc["data"]["gas"] = 0;
-    doc["data"]["wifi_rssi"] = WiFi.RSSI();
-    doc["data"]["version"] = FW_VERSION;
-
-    doc["status"]["focus_mode"] = status.focus_mode;
-
-    char json[1024];
-    serializeJson(doc, json);
+    static char json[1024];  // 静态缓冲区，零堆分配
+    snprintf(json, sizeof(json),
+        "{\"device_id\":\"%s\",\"token\":\"%s\",\"timestamp\":%ld,\"type\":\"data_report\","
+        "\"data\":{\"temperature\":%.2f,\"humidity\":%.2f,\"illuminance\":%.1f,"
+        "\"aqi\":%d,\"tvoc\":%.0f,\"eco2\":%.0f,\"pm25\":%.4f,"
+        "\"mold_risk\":0,\"gas\":0,\"wifi_rssi\":%d,\"version\":\"%s\"},"
+        "\"status\":{\"focus_mode\":%s}}",
+        security.did, security.token, (long)time(NULL),
+        sensorData.temp, sensorData.humi, sensorData.light,
+        sensorData.aqi, sensorData.tvoc, sensorData.eco2, sensorData.pm25,
+        WiFi.RSSI(), FW_VERSION,
+        status.focus_mode ? "true" : "false");
     mqttPublish(topic_data, json);
 }
 

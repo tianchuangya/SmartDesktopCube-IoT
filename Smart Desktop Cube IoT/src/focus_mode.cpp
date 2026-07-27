@@ -1,6 +1,7 @@
 #include "focus_mode.h"
 #include "DataPool.h"
 #include "radar.h"
+#include "LocalIntelligence.h"
 
 static unsigned long firstPresenceTime = 0;
 static bool wasHumanLastCycle = false;
@@ -39,6 +40,7 @@ void focusMode_update() {
         sensorData.focus_duration = 0;
         lastFocusIncrementMs = millis();
         manual_focus_active = false;  // 自动进入，允许自动退出
+        FocusSession_Start();         // 开始环境数据记录
         Serial.println("[Focus] ✅ 自动进入专注模式");
     }
 
@@ -49,6 +51,7 @@ void focusMode_update() {
         !manual_focus_active &&
         !humanNow) {
 
+        FocusSession_End();           // 生成总结 + 触发弹窗
         status.focus_mode = false;
         sensorData.focus_duration = 0;
         Serial.println("[Focus] 自动退出专注模式");
@@ -69,8 +72,9 @@ void focusMode_update() {
 
 // 用户手动退出专注模式时调用（UI 层触发）
 void focusMode_notifyManualExit() {
-    focusConfig.last_manual_exit_ms = millis();  // 记录退出时间，启动冷却
-    firstPresenceTime = 0;                        // 重置累积时间，避免冷却期内误触发
+    FocusSession_End();               // 生成总结 + 触发弹窗
+    focusConfig.last_manual_exit_ms = millis();
+    firstPresenceTime = 0;
     manual_focus_active = false;
     Serial.printf("[Focus] 🛑 手动退出 → 冷却 %lums 内禁止自动进入\n",
                   focusConfig.focus_cooldown_ms);
@@ -78,7 +82,8 @@ void focusMode_notifyManualExit() {
 
 // 用户手动进入专注模式时调用（UI 层触发）
 void focusMode_notifyManualEnter() {
-    lastFocusIncrementMs = millis();  // 初始化计时起点
-    manual_focus_active = true;       // 禁止自动退出
+    lastFocusIncrementMs = millis();
+    manual_focus_active = true;
+    FocusSession_Start();              // 开始环境数据记录
     Serial.println("[Focus] ▶ 手动进入专注模式，计时开始");
 }

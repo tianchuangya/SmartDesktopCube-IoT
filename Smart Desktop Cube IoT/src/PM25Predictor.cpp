@@ -1,6 +1,7 @@
 #include <Arduino.h>  // PROGMEM, pgm_read_* 等
 #include "PM25Predictor.h"
 #include "pm25_model_data.h"
+#include <math.h>     // isnan, isinf
 
 /**
  * 遍历一棵 LightGBM 决策树，返回该树的预测值
@@ -39,12 +40,23 @@ static float predictTree(int treeIdx, const float features[4])
 
 float pm25Predict(float temperature, float co2, float tvoc, float humidity)
 {
+    // 输入校验：传感器故障时可能传入 NaN/Inf
+    if (isnan(temperature) || isinf(temperature) ||
+        isnan(co2)         || isinf(co2)         ||
+        isnan(tvoc)        || isinf(tvoc)        ||
+        isnan(humidity)    || isinf(humidity)) {
+        return -1.0f;  // 无效预测
+    }
+
     float features[4] = { temperature, co2, tvoc, humidity };
     float sum = 0.0f;
 
     for (int t = 0; t < PM25_NUM_TREES; t++) {
         sum += predictTree(t, features);
     }
+
+    // 输出钳位：PM2.5 不应为负值
+    if (sum < 0.0f) sum = 0.0f;
 
     return sum;
 }

@@ -197,18 +197,17 @@ static void b_sendWechat(const char* title, const char* state, const char* msg)
 
     http.addHeader("Content-Type", "application/json;charset=utf-8");
 
-    // 构造 JSON body
-    String body = "{\"deviceName\":\"";
-    body += b_devName;
-    body += "\",\"key\":\"";
-    body += BLINKER_AUTH;
-    body += "\",\"title\":\"";
-    body += title;
-    body += "\",\"state\":\"";
-    body += state;
-    body += "\",\"msg\":\"";
-    body += msg;
-    body += "\",\"receivers\":\"\"}";
+    // 使用 ArduinoJson 安全序列化，防止 JSON 注入
+    JsonDocument doc;
+    doc["deviceName"] = b_devName;
+    doc["key"] = BLINKER_AUTH;
+    doc["title"] = title;
+    doc["state"] = state;
+    doc["msg"] = msg;
+    doc["receivers"] = "";
+
+    String body;
+    serializeJson(doc, body);
 
     http.POST(body);
     http.end();
@@ -310,22 +309,19 @@ void BlinkerApp_SendAll()
     if (!WiFiManager_IsConnected()) return;
     if (!b_mqtt.connected()) return;
 
-    JsonDocument doc;
-    JsonObject data = doc["data"].to<JsonObject>();
-
-    data["num-wendu"].to<JsonObject>()["val"] = sensorData.temp;
-    data["num-shidu"].to<JsonObject>()["val"] = sensorData.humi;
-    data["num-eco2"].to<JsonObject>()["val"] = sensorData.eco2;
-    data["num-pm25"].to<JsonObject>()["val"] = sensorData.pm25;
-    data["num-lx"].to<JsonObject>()["val"] = sensorData.light;
-    data["num-ppb"].to<JsonObject>()["val"] = sensorData.tvoc;
-
-    doc["fromDevice"] = b_devName;
-    doc["toDevice"]   = b_uuid;
-    doc["deviceType"] = "OwnApp";
-
-    char buf[512];
-    serializeJson(doc, buf, sizeof(buf));
+    static char buf[512];  // 静态缓冲区，零堆分配
+    snprintf(buf, sizeof(buf),
+        "{\"data\":{"
+        "\"num-wendu\":{\"val\":%.2f},"
+        "\"num-shidu\":{\"val\":%.2f},"
+        "\"num-eco2\":{\"val\":%.0f},"
+        "\"num-pm25\":{\"val\":%.4f},"
+        "\"num-lx\":{\"val\":%.1f},"
+        "\"num-ppb\":{\"val\":%.0f}"
+        "},\"fromDevice\":\"%s\",\"toDevice\":\"%s\",\"deviceType\":\"OwnApp\"}",
+        sensorData.temp, sensorData.humi, sensorData.eco2,
+        sensorData.pm25, sensorData.light, sensorData.tvoc,
+        b_devName.c_str(), b_uuid.c_str());
     b_mqtt.publish(b_topic_pub.c_str(), buf);
 }
 
