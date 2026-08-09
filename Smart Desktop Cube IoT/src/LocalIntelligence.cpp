@@ -75,6 +75,9 @@ static void adjustBrightness() {
 }
 
 // ==================== 空气质量告警 ====================
+static uint32_t last_air_toast_ms = 0;
+#define AIR_ALERT_TOAST_COOLDOWN_MS  120000  // 2分钟冷却
+
 static void checkAirQuality() {
     // 传感器数据无效时跳过告警（-1 = 传感器离线或未初始化）
     if (sensorData.eco2 < 0 && sensorData.tvoc < 0) {
@@ -83,9 +86,11 @@ static void checkAirQuality() {
     }
 
     bool alert = false;
+    const char* reason = "";
 
     if (sensorData.eco2 > 0 && sensorData.eco2 > CO2_ALERT_THRESHOLD) {
         alert = true;
+        reason = "CO2";
         if (!status.air_quality_alert && !status.silent_mode) {
             Serial.printf("[智能] ⚠ 空气质量告警: CO2=%.0f ppm (> %d)\n",
                           sensorData.eco2, CO2_ALERT_THRESHOLD);
@@ -94,9 +99,23 @@ static void checkAirQuality() {
 
     if (sensorData.tvoc > 0 && sensorData.tvoc > TVOC_ALERT_THRESHOLD) {
         alert = true;
+        if (!reason[0]) reason = "TVOC";
         if (!status.air_quality_alert && !status.silent_mode) {
             Serial.printf("[智能] ⚠ 空气质量告警: TVOC=%.0f ppb (> %.0f)\n",
                           sensorData.tvoc, TVOC_ALERT_THRESHOLD);
+        }
+    }
+
+    // 告警状态由 false → true 时，弹出屏幕提示 + 标记待发送微信
+    if (alert && !status.air_quality_alert) {
+        uint32_t now = millis();
+        status.pending_wechat_air = true;  // 暂存告警，等Blinker认证后补发微信
+        if (last_air_toast_ms == 0 || now - last_air_toast_ms >= AIR_ALERT_TOAST_COOLDOWN_MS) {
+            snprintf(status.pending_toast, sizeof(status.pending_toast),
+                     "Air quality alert!\n%s high, ventilate", reason);
+            status.toast_duration_ms = 5000;
+            status.toast_pending = true;
+            last_air_toast_ms = now;
         }
     }
 

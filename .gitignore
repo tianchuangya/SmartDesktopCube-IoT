@@ -4,6 +4,14 @@
 # 敏感配置文件（含 WiFi 密码和 API Key）
 secrets.h
 
+# Office temporary lock files
+~$*.docx
+~$*.pptx
+
+# Generated presentation build scratch files
+作品提交/ppt_build/
+作品提交/*.inspect.ndjson
+
 # Compiled Object files
 *.slo
 *.lo

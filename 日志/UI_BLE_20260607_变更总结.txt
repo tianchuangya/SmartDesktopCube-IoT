@@ -1,0 +1,132 @@
+================================================================================
+  Smart Desktop Cube IoT — UI融合 + 蓝牙灯光控制 变更总结
+  日期: 2025-06-07
+================================================================================
+
+一、变更概述
+────────────────────────────────────────────────────────────────────
+将GUI Guider导出的新UI控件融合到项目中，并新建蓝牙灯光控制功能模块。
+
+二、新增文件（4个）
+────────────────────────────────────────────────────────────────────
+1. src/BluetoothLight.h          BLE灯光控制头文件（API、预设模板、状态结构体）
+2. src/BluetoothLight.cpp        BLE灯光控制实现（NimBLE连接、亮度/色温控制、异步任务）
+3. src/ui/generated/images/_wifion_alpha_28x28.c    WiFi图标（28x28像素）
+4. src/ui/generated/guider_fonts/lv_font_yezi_hei_20.c  叶子黑20号字体
+
+三、修改文件（11个）
+────────────────────────────────────────────────────────────────────
+
+【UI融合部分】
+1. gui_guider.h
+   - 新增 mainScreen_img_boot_logo（替换原来的 img_1）
+   - 新增 mainScreen_img_wifi（右上角WiFi图标，单击进入设置）
+   - 新增 fouseScreen_label_focus_timer（替换原来的 label_timer）
+   - 新增 fouseScreen_label_1（"专注模式"标题）
+   - 新增 settingsScreen 全部控件：
+     * settingsScreen_slider_Brightness    亮度滑块(0-100)
+     * settingsScreen_slider_Color_temperature  色温滑块(0-100)
+     * settingsScreen_sw_open             开关控件
+     * settingsScreen_label_Bluetooth_light  亮度数值标签
+     * settingsScreen_label_1/2/3/4       标签文字
+     * settingsScreen_btn_1               返回按钮
+   - 新增 envScreen_label_pm25（PM2.5数据标签）
+   - 新增字体声明: lv_font_yezi_hei_20, lv_font_montserratMedium_16
+   - 新增图片声明: _wifion_alpha_28x28
+
+2. events_init.h
+   - 新增 events_init_settingsScreen() 函数声明
+
+3. events_init.c
+   - 新增 mainScreen_img_wifi 点击事件 → 切换到 settingsScreen
+   - mainScreen_img_1 重命名为 mainScreen_img_boot_logo
+   - 新增设置屏幕控件事件处理：
+     * 亮度滑块 VALUE_CHANGED → 更新标签 + 调用 BL_SetBrightness()
+     * 色温滑块 VALUE_CHANGED → 更新标签 + 调用 BL_SetColorTemp()
+     * 开关 VALUE_CHANGED → 调用 BL_TurnOn() / BL_TurnOff()
+   - events_init() 中新增 events_init_settingsScreen() 调用
+
+4. setup_scr_mainScreen.c
+   - mainScreen_img_1 重命名为 mainScreen_img_boot_logo
+   - 新增 mainScreen_img_wifi WiFi图标控件（位置: 292,0 尺寸: 28x28）
+
+5. setup_scr_fouseScreen.c
+   - fouseScreen_label_timer 重命名为 fouseScreen_label_focus_timer
+   - 新增 fouseScreen_label_1 "专注模式"标题标签（位置: 226,7）
+
+6. setup_scr_settingsScreen.c（完全重写）
+   - 背景图 _img_bg_main_320x240
+   - 亮度滑块（位置: 22,62 尺寸: 257x31 范围: 0-100 默认: 50）
+   - 色温滑块（位置: 22,140 尺寸: 257x31 范围: 0-100 默认: 50）
+   - 开关控件（位置: 122,192 尺寸: 58x34 蓝色主题）
+   - 亮度/色温数值实时显示
+   - "台灯设置"标题（叶子黑20号字体）
+   - "返回"按钮 → 回到 mainScreen
+
+7. setup_scr_envScreen.c
+   - 新增 envScreen_label_pm25 PM2.5数据显示标签
+
+8. gui_guider.c
+   - setup_ui() 中新增 setup_scr_settingsScreen(ui) 预加载
+
+【蓝牙灯光控制部分】
+
+9. focus_mode.cpp
+   - 引入 BluetoothLight.h
+   - 进入专注模式时: 自动调用 BL_PresetWarm()（暖光100%亮度 ~3000K）
+   - 退出专注模式时: 自动调用 BL_PresetWhite()（白光80%亮度 ~4500K）
+
+10. main.cpp
+    - 引入 BluetoothLight.h
+    - setup() 中添加 BL_Init() 初始化BLE并启动后台管理任务
+
+11. platformio.ini
+    - 新增依赖: h2zero/NimBLE-Arduino@^2.1.2
+
+四、蓝牙灯具参数
+────────────────────────────────────────────────────────────────────
+  MAC地址:      AC:8C:46:9D:C4:25
+  服务UUID:     00000100-0065-6c62-2e74-6f696d2e696d
+  写特征UUID:   00000101-0065-6c62-2e74-6f696d2e696d  (发送控制指令)
+  通知特征UUID: 00000102-0065-6c62-2e74-6f696d2e696d  (读取设备状态)
+  BLE协议格式:  [亮度(0-100), 色温(0-100)]
+
+五、三种预设模板
+────────────────────────────────────────────────────────────────────
+  模板        亮度      色温        对应开尔文    触发场景
+  ─────────────────────────────────────────────────
+  暖光Warm    100%      8(~3000K)   3000K        进入专注模式自动调用
+  冷光Cool     80%    100(~6500K)   6500K        手动/可扩展
+  白光White    80%     47(~4500K)   4500K        退出专注模式自动恢复
+
+六、UI交互流程
+────────────────────────────────────────────────────────────────────
+mainScreen（主屏幕）
+  ├─ 右上角WiFi图标(单击) ──→ settingsScreen（设置屏幕）
+  ├─ 底部boot_logo图标(单击) ──→ fouseScreen（专注屏幕）
+  ├─ 左滑 ──→ airScreen
+  └─ 右滑 ──→ envScreen
+
+settingsScreen（设置屏幕）
+  ├─ 亮度滑块 ──→ 实时BLE控制亮度
+  ├─ 色温滑块 ──→ 实时BLE控制色温
+  ├─ 开关控件 ──→ BLE开灯/关灯
+  └─ 返回按钮 ──→ mainScreen
+
+fouseScreen（专注屏幕）
+  ├─ 显示专注计时器
+  ├─ 显示当前台灯色温信息
+  └─ 返回按钮 ──→ mainScreen
+
+七、BLE架构说明
+────────────────────────────────────────────────────────────────────
+- BL_Init() 创建 FreeRTOS 任务 "BLE_Light"（核心1，优先级2）
+- 任务每200ms检查连接状态，自动重连（5秒间隔）
+- 灯具控制为非阻塞：设置目标值后由任务异步发送
+- 发送失败自动标记断开并重连
+- 支持通知回调读取设备状态
+
+================================================================================
+  生成时间: 2025-06-07
+  生成工具: Claude Code
+================================================================================

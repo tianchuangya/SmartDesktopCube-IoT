@@ -58,6 +58,7 @@ DeviceStatus status = {
   .ota_pending_version={0},
   .ota_pending_md5={0},
   .air_quality_alert=false,
+  .pending_wechat_air=false,
   .temp_comfort_alert=false,
   .auto_brightness_enabled=true,
   .silent_mode=false,

@@ -72,7 +72,13 @@ void Task_MqttReconnect(void *pvParameters) {
             continue;
         }
 
-        // ---- 2. MQTT 重连（优先于 Blinker，避免 Blinker HTTPS 阻塞重连）----
+        // ---- 1.5 WiFi 就绪后立即运行 Blinker（独立连接，不等 MQTT）----
+        if (!status.ota_in_progress) {
+            BlinkerApp_Init();
+            BlinkerApp_Run();
+        }
+
+        // ---- 2. MQTT 重连（独立于 Blinker）----
         if (!mqttIsConnected()) {
             if (security.token_ok) {
                 security.token_ok = false;
@@ -96,12 +102,6 @@ void Task_MqttReconnect(void *pvParameters) {
                     Serial.println("[MQTT] 重连失败，5s后重试");
                 }
             }
-            // Blinker 在 MQTT 断开时也运行（它有独立连接），但放在重连之后不阻塞
-            // OTA 期间禁止 Blinker（TLS 争抢硬件 SHA → Double exception）
-            if (!status.ota_in_progress) {
-                BlinkerApp_Init();
-                BlinkerApp_Run();
-            }
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
         }
@@ -110,6 +110,12 @@ void Task_MqttReconnect(void *pvParameters) {
         if (!status.ota_in_progress) {
             BlinkerApp_Init();
             BlinkerApp_Run();
+        } else {
+            static uint32_t last_ota_block_log = 0;
+            if (millis() - last_ota_block_log >= 60000) {
+                last_ota_block_log = millis();
+                Serial.println("[Blinker] OTA进行中，跳过Blinker");
+            }
         }
 
         // ---- 3. 已连接：处理收发 ----

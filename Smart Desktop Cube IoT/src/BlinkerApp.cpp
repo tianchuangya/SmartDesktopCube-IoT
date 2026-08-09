@@ -32,6 +32,7 @@
 #include <HTTPClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include "esp_heap_caps.h"
 
 // ==================== 用户配置（从 secrets.h 读取）====================
 #define BLINKER_AUTH BLINKER_AUTH_KEY
@@ -66,26 +67,49 @@ static const int      MAX_RECONNECT_FAILS = 3;
 // ==================== 认证握手 ====================
 static bool b_doAuth()
 {
+    Serial.printf("[Blinker] 认证开始, heap free=%u, max_alloc=%u\n",
+                  (unsigned)esp_get_free_heap_size(),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+
     WiFiClientSecure tls;
     tls.setInsecure();
     tls.setTimeout(10000);
+    Serial.println("[Blinker] TLS客户端已创建");
 
     HTTPClient http;
     String url = String("https://iot.diandeng.tech/api/v1/user/device/diy/auth?authKey=")
                  + BLINKER_AUTH + "&version=1.0&protocol=mqtt";
 
-    if (!http.begin(tls, url)) return false;
+    Serial.printf("[Blinker] 认证URL长度=%d\n", url.length());
+
+    if (!http.begin(tls, url)) {
+        Serial.println("[Blinker] 认证: HTTP begin failed");
+        return false;
+    }
+    Serial.println("[Blinker] HTTP begin OK, 发送GET请求...");
 
     int code = http.GET();
-    if (code != 200) { http.end(); return false; }
+    Serial.printf("[Blinker] GET返回: code=%d\n", code);
+    if (code != 200) {
+        Serial.printf("[Blinker] 认证失败: HTTP %d\n", code);
+        http.end();
+        return false;
+    }
 
     String resp = http.getString();
     http.end();
+    Serial.printf("[Blinker] 响应长度=%d\n", resp.length());
 
     JsonDocument doc;
-    if (deserializeJson(doc, resp)) return false;
+    if (deserializeJson(doc, resp)) {
+        Serial.println("[Blinker] 认证失败: JSON解析错误");
+        return false;
+    }
 
-    if (!doc["detail"].is<JsonObject>()) return false;
+    if (!doc["detail"].is<JsonObject>()) {
+        Serial.printf("[Blinker] 认证失败: 无detail字段, resp=%s\n", resp.c_str());
+        return false;
+    }
 
     JsonObject d = doc["detail"];
     b_host    = d["host"].as<String>();
@@ -109,6 +133,8 @@ static bool b_doAuth()
     b_topic_pub = "/device/" + b_devName + "/s";
     b_topic_sub = "/device/" + b_devName + "/r";
 
+    Serial.printf("[Blinker] 认证成功: devName=%s, host=%s:%d\n",
+                  b_devName.c_str(), b_host.c_str(), b_port);
     return true;
 }
 
@@ -178,50 +204,51 @@ static void b_pubSwi(const char* key, const char* swi)
     b_mqtt.publish(b_topic_pub.c_str(), buf);
 }
 
-// ==================== 微信通知（HTTP API）====================
-// Blinker 微信推送走 HTTP POST 到 iot.diandeng.tech/api/v1/user/device/wxMsg/
-// JSON body: {"deviceName":"...","key":"...","title":"...","state":"...","msg":"...","receivers":""}
+// ==================== 微信通知（PushPlus）====================
+// PushPlus 推送加：关注公众号"pushplus推送加"后在 pushplus.net 获取 token
+// HTTP POST JSON 到 www.pushplus.net/send，纯 HTTP 无需 TLS（省 ~16KB 堆内存）
 static void b_sendWechat(const char* title, const char* state, const char* msg)
 {
-    if (!WiFiManager_IsConnected()) return;
-    if (b_devName.length() == 0) return;  // 未认证
+    if (!WiFiManager_IsConnected()) {
+        Serial.println("[推送] 未连接WiFi，跳过");
+        return;
+    }
 
-    WiFiClientSecure tls;
-    tls.setInsecure();
-    tls.setTimeout(10000);
-
+    WiFiClient client;
     HTTPClient http;
-    String url = "https://iot.diandeng.tech/api/v1/user/device/wxMsg/";
 
-    if (!http.begin(tls, url)) return;
+    if (!http.begin(client, "http://www.pushplus.plus/send")) {
+        Serial.println("[推送] HTTP begin failed");
+        return;
+    }
 
-    http.addHeader("Content-Type", "application/json;charset=utf-8");
+    http.addHeader("Content-Type", "application/json");
 
-    // 使用 ArduinoJson 安全序列化，防止 JSON 注入
-    JsonDocument doc;
-    doc["deviceName"] = b_devName;
-    doc["key"] = BLINKER_AUTH;
-    doc["title"] = title;
-    doc["state"] = state;
-    doc["msg"] = msg;
-    doc["receivers"] = "";
+    // snprintf 构造 JSON body，零堆分配
+    static char body[256];
+    snprintf(body, sizeof(body),
+        "{\"token\":\"%s\",\"title\":\"%s\",\"content\":\"[%s] %s\",\"template\":\"txt\"}",
+        PUSHPLUS_TOKEN, title, state, msg);
 
-    String body;
-    serializeJson(doc, body);
-
-    http.POST(body);
+    int code = http.POST(body);
+    if (code > 0) {
+        String resp = http.getString();
+        Serial.printf("[推送] %s -> HTTP %d, resp=%s\n", title, code, resp.c_str());
+    } else {
+        Serial.printf("[推送] 失败: %s -> %s\n", title, http.errorToString(code).c_str());
+    }
     http.end();
 }
 
 // ==================== 报警阈值 ====================
-#define ALARM_AQI_HIGH      300     // AQI≥300 严重污染
+#define ALARM_AQI_HIGH      150     // AQI≥150 重度污染（屏幕变红即告警）
 #define ALARM_TEMP_HIGH     45.0f   // 温度≥45°C 疑似火灾
 #define ALARM_TEMP_LOW       5.0f   // 温度≤5°C 过冷
 #define ALARM_HUMI_HIGH     85.0f   // 湿度≥85% 过湿
 #define ALARM_HUMI_LOW      20.0f   // 湿度≤20% 过干
-#define ALARM_PM25_HIGH    150.0f   // PM2.5≥150 重度污染
-#define ALARM_ECO2_HIGH   2000.0f   // eCO2≥2000ppm 重度污染
-#define ALARM_TVOC_HIGH   2200.0f   // TVOC≥2200ppb 重度污染
+#define ALARM_PM25_HIGH    100.0f   // PM2.5≥100 中度污染
+#define ALARM_ECO2_HIGH   1200.0f   // eCO2≥1200ppm 通风告警
+#define ALARM_TVOC_HIGH    800.0f   // TVOC≥800ppb 通风告警
 
 #define ALARM_COOLDOWN_MS  120000   // 报警冷却 2 分钟（Blinker 服务端限制 60s）
 #define ALARM_COUNT 8
@@ -247,8 +274,12 @@ static bool alarm_can_send(AlarmType_t t) {
 
 static void alarm_send(AlarmType_t t, const char* title, const char* state, const char* msg)
 {
-    if (!alarm_can_send(t)) return;
+    if (!alarm_can_send(t)) {
+        Serial.printf("[报警] %s 冷却中，跳过\n", title);
+        return;
+    }
     alarm_last_sent[t] = millis();
+    Serial.printf("[报警] 触发: %s (%s) %s\n", title, state, msg);
     b_sendWechat(title, state, msg);
 }
 
@@ -262,26 +293,44 @@ void BlinkerApp_Init()
 
 void BlinkerApp_Run()
 {
-    if (!WiFiManager_IsConnected()) return;
+    // 入口诊断（每30秒打印一次，避免刷屏）
+    static uint32_t last_diag = 0;
+    uint32_t now_ms = millis();
+    bool do_diag = (now_ms - last_diag >= 30000);
+    if (do_diag) last_diag = now_ms;
+
+    if (!WiFiManager_IsConnected()) {
+        if (do_diag) Serial.println("[Blinker] Run: WiFi未连接，跳过");
+        return;
+    }
 
     if (!b_authed) {
-        if (millis() - b_last_auth < AUTH_RETRY_MS) return;
-        b_last_auth = millis();
+        if (now_ms - b_last_auth < AUTH_RETRY_MS) {
+            if (do_diag) Serial.printf("[Blinker] Run: 未认证，冷却中(剩余%ds)\n",
+                (int)((AUTH_RETRY_MS - (now_ms - b_last_auth)) / 1000));
+            return;
+        }
+        if (do_diag) Serial.println("[Blinker] Run: 开始认证...");
+        b_last_auth = now_ms;
         b_authed = b_doAuth();
         if (b_authed) b_connectMqtt();
         return;
     }
 
     if (!b_mqtt.connected()) {
-        if (millis() - b_last_reconnect < RECONNECT_RETRY_MS) return;
-        b_last_reconnect = millis();
+        if (now_ms - b_last_reconnect < RECONNECT_RETRY_MS) return;
+        b_last_reconnect = now_ms;
+        Serial.println("[Blinker] MQTT重连...");
         if (b_connectMqtt()) {
             b_reconnect_fails = 0;
+            Serial.println("[Blinker] MQTT重连成功");
         } else {
             b_reconnect_fails++;
+            Serial.printf("[Blinker] MQTT重连失败(%d/%d)\n", b_reconnect_fails, MAX_RECONNECT_FAILS);
             if (b_reconnect_fails >= MAX_RECONNECT_FAILS) {
                 b_authed = false;
                 b_reconnect_fails = 0;
+                Serial.println("[Blinker] 重连失败过多，重新认证");
             }
         }
         return;
@@ -335,61 +384,78 @@ void BlinkerApp_SendWechat(const char* title, const char* state, const char* mes
 void BlinkerApp_CheckAlarms()
 {
     if (!WiFiManager_IsConnected()) return;
-    if (b_devName.length() == 0) return;  // 未认证不检查
+    if (b_devName.length() == 0) {
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            Serial.println("[报警] Blinker未认证(b_devName为空)，报警检查跳过。需先完成BlinkerApp_Run()认证");
+        }
+        return;
+    }
+
+    // 补发暂存的空气质量告警（峰值已过但告警标志仍在）
+    if (status.pending_wechat_air) {
+        status.pending_wechat_air = false;
+        char msg[64];
+        snprintf(msg, sizeof(msg), "Air alert! CO2=%.0fppm, TVOC=%.0fppb. Ventilate!",
+                 sensorData.eco2, sensorData.tvoc);
+        alarm_send(ALARM_AQI, "Air Alert", "Warning", msg);
+        Serial.println("[报警] 补发暂存的空气质量告警");
+    }
 
     // AQI 严重污染
     if (sensorData.aqi >= ALARM_AQI_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "AQI值过高(%d)，请注意室内通风", sensorData.aqi);
-        alarm_send(ALARM_AQI, "空气报警", "严重", msg);
+        snprintf(msg, sizeof(msg), "AQI too high(%d), please ventilate", sensorData.aqi);
+        alarm_send(ALARM_AQI, "Air Alert", "Warning", msg);
     }
 
     // 温度过高（疑似火灾）
     if (sensorData.temp >= ALARM_TEMP_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "室内温度过高，目前%.1f°C，疑似火灾！", sensorData.temp);
-        alarm_send(ALARM_TEMP_HI, "温度报警", "紧急", msg);
+        snprintf(msg, sizeof(msg), "Temp too high: %.1fC, possible fire!", sensorData.temp);
+        alarm_send(ALARM_TEMP_HI, "Temp Alert", "Emergency", msg);
     }
 
     // 温度过低
     if (sensorData.temp >= 0 && sensorData.temp <= ALARM_TEMP_LOW) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "室内温度过低，目前%.1f°C", sensorData.temp);
-        alarm_send(ALARM_TEMP_LO, "温度报警", "提醒", msg);
+        snprintf(msg, sizeof(msg), "Temp too low: %.1fC", sensorData.temp);
+        alarm_send(ALARM_TEMP_LO, "Temp Alert", "Info", msg);
     }
 
     // 湿度过高
     if (sensorData.humi >= ALARM_HUMI_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "室内湿度过高，当前%.1f%%，注意防潮", sensorData.humi);
-        alarm_send(ALARM_HUMI_HI, "湿度报警", "提醒", msg);
+        snprintf(msg, sizeof(msg), "Humidity too high: %.1f%%", sensorData.humi);
+        alarm_send(ALARM_HUMI_HI, "Humidity Alert", "Info", msg);
     }
 
     // 湿度过低
     if (sensorData.humi >= 0 && sensorData.humi <= ALARM_HUMI_LOW) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "室内湿度过低，当前%.1f%%，注意保湿", sensorData.humi);
-        alarm_send(ALARM_HUMI_LO, "湿度报警", "提醒", msg);
+        snprintf(msg, sizeof(msg), "Humidity too low: %.1f%%", sensorData.humi);
+        alarm_send(ALARM_HUMI_LO, "Humidity Alert", "Info", msg);
     }
 
     // PM2.5 超标
     if (sensorData.pm25 >= ALARM_PM25_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "PM2.5浓度超标，当前%.1f μg/m³，请通风或佩戴口罩", sensorData.pm25);
-        alarm_send(ALARM_PM25, "空气报警", "严重", msg);
+        snprintf(msg, sizeof(msg), "PM2.5 too high: %.1f ug/m3, ventilate!", sensorData.pm25);
+        alarm_send(ALARM_PM25, "Air Alert", "Warning", msg);
     }
 
     // eCO2 超标
     if (sensorData.eco2 >= ALARM_ECO2_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "CO2浓度过高，当前%.0f ppm，请开窗通风", sensorData.eco2);
-        alarm_send(ALARM_ECO2, "空气报警", "严重", msg);
+        snprintf(msg, sizeof(msg), "CO2 too high: %.0f ppm, open windows!", sensorData.eco2);
+        alarm_send(ALARM_ECO2, "Air Alert", "Warning", msg);
     }
 
     // TVOC 超标
     if (sensorData.tvoc >= ALARM_TVOC_HIGH) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "TVOC浓度过高，当前%.0f ppb，注意室内空气", sensorData.tvoc);
-        alarm_send(ALARM_TVOC, "空气报警", "严重", msg);
+        snprintf(msg, sizeof(msg), "TVOC too high: %.0f ppb, ventilate!", sensorData.tvoc);
+        alarm_send(ALARM_TVOC, "Air Alert", "Warning", msg);
     }
 }

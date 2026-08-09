@@ -77,6 +77,7 @@ typedef struct {
   char ota_pending_md5[33];   // 待确认的 MD5
   // ---- 本地智能决策 ----
   bool air_quality_alert;     // 空气质量告警（CO2>1000ppm 或 TVOC>500ppb）
+  volatile bool pending_wechat_air; // 空气质量告警待发送微信（峰值已过但Blinker未认证时暂存）
   bool temp_comfort_alert;    // 温度舒适度告警（<18°C 或 >28°C）
   bool auto_brightness_enabled; // 是否启用自动亮度调节
   bool silent_mode;           // 免打扰模式（夜间不告警）
